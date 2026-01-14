@@ -1,0 +1,1067 @@
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { getComposioClient } from "~/server/utils/composio";
+
+/**
+ * Liste des intégrations autorisées (limitées pour l'instant)
+ * Mapping: slug Composio (normalisé) -> nom d'affichage
+ */
+const ALLOWED_INTEGRATIONS: Record<string, string> = {
+  instagram: "Instagram",
+  youtube: "YouTube",
+  twitter: "Twitter",
+  linkedin: "LinkedIn",
+  facebook: "Meta Ads",
+  "google-calendar": "Google Calendar",
+  googlecalendar: "Google Calendar",
+  notion: "Notion",
+  slack: "Slack",
+  shopify: "Shopify",
+  stripe: "Stripe",
+};
+
+/**
+ * Normalise un slug pour la comparaison (enlève les tirets, met en minuscule)
+ */
+function normalizeSlug(slug: string): string {
+  return slug.toLowerCase().replace(/-/g, "");
+}
+
+export const integrationsRouter = createTRPCRouter({
+  /**
+   * Récupérer les intégrations disponibles depuis Composio (limitées à la liste autorisée)
+   */
+  list: protectedProcedure.query(async () => {
+    try {
+      const composio = getComposioClient();
+      const toolkits = await composio.toolkits.get({});
+
+      // La réponse est directement un tableau selon ToolKitListResponseSchema
+      const toolkitsArray = Array.isArray(toolkits) ? toolkits : [];
+
+      // Filtrer pour ne garder que les intégrations autorisées
+      const allowedNormalizedSlugs = new Set(
+        Object.keys(ALLOWED_INTEGRATIONS).map(normalizeSlug),
+      );
+
+      const filteredToolkits = toolkitsArray.filter((toolkit) => {
+        if (!toolkit?.slug) return false;
+        const normalizedSlug = normalizeSlug(toolkit.slug);
+        return allowedNormalizedSlugs.has(normalizedSlug);
+      });
+
+      return filteredToolkits.map((toolkit) => {
+        const normalizedSlug = normalizeSlug(toolkit.slug ?? "");
+        // Trouver la clé correspondante dans ALLOWED_INTEGRATIONS
+        const displayNameKey = Object.keys(ALLOWED_INTEGRATIONS).find(
+          (key) => normalizeSlug(key) === normalizedSlug,
+        );
+
+        return {
+          slug: toolkit.slug ?? "",
+          name: displayNameKey
+            ? ALLOWED_INTEGRATIONS[displayNameKey]
+            : (toolkit.name ?? "Unknown"),
+          logo: toolkit.meta?.logo ?? undefined,
+        };
+      });
+    } catch (error) {
+      console.error("Erreur lors de la récupération des intégrations:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("Détails de l'erreur:", errorMessage);
+
+      // Retourner un tableau vide en cas d'erreur plutôt que de faire échouer la requête
+      return [];
+    }
+  }),
+
+  /**
+   * Obtenir les intégrations connectées de l'utilisateur
+   */
+  getConnected: protectedProcedure.query(async ({ ctx }) => {
+    try {
+      const composio = getComposioClient();
+      const userId = ctx.session.user.id;
+      const userEmail = ctx.session.user.email;
+
+      // Log pour vérifier l'identification de l'utilisateur
+      console.log(
+        `[getConnected] Utilisateur identifié: ${userId} (${userEmail})`,
+      );
+
+      // Récupérer les comptes connectés pour cet utilisateur
+      // userIds correspond à l'ID unique de l'utilisateur dans notre système
+      const connectedAccounts = await composio.connectedAccounts.list({
+        userIds: [userId],
+      });
+
+      console.log(
+        `[getConnected] Comptes trouvés pour ${userId}: ${connectedAccounts.items.length}`,
+      );
+
+      // Ne retourner que les comptes actifs
+      const activeAccounts = connectedAccounts.items.filter(
+        (account) => account.status === "ACTIVE",
+      );
+      console.log(`[getConnected] Comptes actifs: ${activeAccounts.length}`);
+
+      return activeAccounts.map((account) => {
+        // Utiliser le slug du toolkit si disponible
+        const slug = account.toolkit?.slug ?? "";
+        console.log(`[getConnected] Compte actif: ${slug} (ID: ${account.id})`);
+        return slug;
+      });
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des intégrations connectées:",
+        error,
+      );
+      // En cas d'erreur, retourner un tableau vide plutôt que de faire échouer la requête
+      return [] as string[];
+    }
+  }),
+
+  /**
+   * Connecter une intégration via Composio
+   */
+  connect: protectedProcedure
+    .input(
+      z.object({
+        integrationKey: z.string().min(1, "La clé d'intégration est requise"),
+        returnTo: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const composio = getComposioClient();
+        const userId = ctx.session.user.id;
+        const userEmail = ctx.session.user.email;
+        const toolkitSlug = input.integrationKey;
+
+        // Log pour vérifier l'identification de l'utilisateur
+        console.log(`[connect] ========================================`);
+        console.log(
+          `[connect] Utilisateur identifié: ${userId} (${userEmail})`,
+        );
+        console.log(
+          `[connect] 🔗 Tentative de connexion pour: "${toolkitSlug}"`,
+        );
+        console.log(
+          `[connect] Slug reçu depuis le frontend: "${input.integrationKey}"`,
+        );
+
+        // Vérifier si CET UTILISATEUR a déjà cette intégration connectée et active
+        const normalizedSlug = normalizeSlug(toolkitSlug);
+        const connectedAccounts = await composio.connectedAccounts.list({
+          userIds: [userId], // UNIQUEMENT les comptes de cet utilisateur
+        });
+
+        console.log(
+          `[connect] Comptes pour ${userId}: ${connectedAccounts.items.length}`,
+        );
+        console.log(
+          `[connect] Recherche: ${toolkitSlug} (normalisé: ${normalizedSlug})`,
+        );
+
+        // Vérifier si CET UTILISATEUR a un compte ACTIF pour ce toolkit
+        const activeAccount = connectedAccounts.items.find((account) => {
+          const accountSlug = account.toolkit?.slug ?? "";
+          const normalizedAccountSlug = normalizeSlug(accountSlug);
+          const isActive = account.status === "ACTIVE";
+          const matches = normalizedAccountSlug === normalizedSlug;
+          console.log(
+            `[connect] Compte: ${accountSlug} (${normalizedAccountSlug}) - Status: ${account.status} - Match: ${matches}`,
+          );
+          return matches && isActive;
+        });
+
+        if (activeAccount) {
+          console.log(
+            `[connect] ✅ Déjà connecté et actif: ${activeAccount.id}`,
+          );
+          return {
+            authUrl: null,
+            connected: true,
+          };
+        }
+
+        // Récupérer le toolkit
+        const toolkit = await composio.toolkits.get(toolkitSlug);
+        console.log(`[connect] Toolkit: ${toolkit.slug} - ${toolkit.name}`);
+
+        // ÉTAPE 1: Obtenir ou créer l'authConfig pour ce toolkit (partagé entre tous les utilisateurs)
+        let authConfigId: string | undefined;
+        console.log(
+          `[connect] 🔍 Recherche d'authConfig pour toolkit: "${toolkitSlug}" (normalisé: "${normalizedSlug}")`,
+        );
+
+        // Lister tous les authConfigs et filtrer manuellement pour être sûr
+        const allAuthConfigs = await composio.authConfigs.list();
+        console.log(
+          `[connect] Total authConfigs disponibles: ${allAuthConfigs.items.length}`,
+        );
+
+        // Filtrer pour trouver celui du bon toolkit
+        const matchingAuthConfig = allAuthConfigs.items.find((config) => {
+          const configSlug = config.toolkit?.slug ?? "";
+          const normalizedConfigSlug = normalizeSlug(configSlug);
+          const matches = normalizedConfigSlug === normalizedSlug;
+          console.log(
+            `[connect] AuthConfig ${config.id}: toolkit="${configSlug}" (${normalizedConfigSlug}) - Match: ${matches}`,
+          );
+          return matches;
+        });
+
+        if (matchingAuthConfig) {
+          authConfigId = matchingAuthConfig.id;
+          console.log(
+            `[connect] ✅ AuthConfig existant trouvé pour ${toolkitSlug}: ${authConfigId}`,
+          );
+        } else {
+          // Créer un nouvel authConfig géré par Composio
+          console.log(
+            `[connect] Aucun authConfig trouvé, création d'un nouveau...`,
+          );
+          // Utiliser authorize qui crée automatiquement l'authConfig et retourne l'URL
+          const connectionRequest = await composio.toolkits.authorize(
+            userId,
+            toolkitSlug,
+          );
+
+          if (connectionRequest.redirectUrl) {
+            console.log(
+              `[connect] ✅ AuthConfig créé via authorize, redirection: ${connectionRequest.redirectUrl}`,
+            );
+            return {
+              authUrl: connectionRequest.redirectUrl,
+              connected: false,
+            };
+          }
+
+          // Si authorize n'a pas retourné d'URL, récupérer l'authConfig créé et utiliser link
+          console.log(
+            `[connect] authorize n'a pas retourné d'URL, récupération de l'authConfig...`,
+          );
+          const newAuthConfigs = await composio.authConfigs.list({
+            toolkit: toolkitSlug,
+          });
+
+          if (newAuthConfigs.items.length > 0) {
+            authConfigId = newAuthConfigs.items[0]?.id;
+            console.log(`[connect] AuthConfig créé récupéré: ${authConfigId}`);
+          } else {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Impossible de créer l'authConfig",
+            });
+          }
+        }
+
+        if (!authConfigId) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Impossible de créer ou trouver l'authConfig",
+          });
+        }
+
+        // ÉTAPE 2: Vérifier que l'authConfig correspond bien au toolkit avant de l'utiliser
+        console.log(
+          `[connect] 🔍 Vérification de l'authConfig ${authConfigId}...`,
+        );
+        const authConfigDetails = await composio.authConfigs.get(authConfigId);
+        const authConfigToolkitSlug = authConfigDetails.toolkit?.slug ?? "";
+        const normalizedAuthConfigSlug = normalizeSlug(authConfigToolkitSlug);
+
+        console.log(
+          `[connect] AuthConfig toolkit: "${authConfigToolkitSlug}" (${normalizedAuthConfigSlug})`,
+        );
+        console.log(
+          `[connect] Toolkit demandé: "${toolkitSlug}" (${normalizedSlug})`,
+        );
+
+        if (normalizedAuthConfigSlug !== normalizedSlug) {
+          console.error(
+            `[connect] ❌ ERREUR: L'authConfig ${authConfigId} ne correspond pas!`,
+          );
+          console.error(
+            `[connect] Attendu: ${normalizedSlug}, Trouvé: ${normalizedAuthConfigSlug}`,
+          );
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `L'authConfig ne correspond pas au toolkit demandé (${toolkitSlug} vs ${authConfigToolkitSlug})`,
+          });
+        }
+
+        // ÉTAPE 3: Connecter CET UTILISATEUR à cet authConfig
+        const returnPath = input.returnTo ?? "/onboarding/integrations";
+        const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/onboarding/integrations/callback?returnTo=${encodeURIComponent(returnPath)}`;
+        console.log(
+          `[connect] 🔗 Connexion de ${userId} à "${toolkitSlug}" via authConfig ${authConfigId}`,
+        );
+        console.log(`[connect] Callback URL: ${callbackUrl}`);
+
+        const connectionRequest = await composio.connectedAccounts.link(
+          userId, // L'utilisateur spécifique
+          authConfigId, // L'authConfig partagé (vérifié)
+          {
+            callbackUrl,
+          },
+        );
+
+        console.log(`[connect] ConnectionRequest créé:`, {
+          id: connectionRequest.id,
+          status: connectionRequest.status,
+          redirectUrl: connectionRequest.redirectUrl,
+        });
+
+        if (!connectionRequest.redirectUrl) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Impossible de générer l'URL d'autorisation",
+          });
+        }
+
+        console.log(
+          `[connect] ✅ Redirection vers: ${connectionRequest.redirectUrl}`,
+        );
+        console.log(`[connect] ========================================`);
+        return {
+          authUrl: connectionRequest.redirectUrl,
+          connected: false,
+        };
+      } catch (error) {
+        console.error("Erreur lors de la connexion de l'intégration:", error);
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Impossible de connecter l'intégration",
+        });
+      }
+    }),
+
+  /**
+   * Déconnecter une intégration
+   */
+  disconnect: protectedProcedure
+    .input(
+      z.object({
+        integrationKey: z.string().min(1, "La clé d'intégration est requise"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const composio = getComposioClient();
+        const userId = ctx.session.user.id;
+        const toolkitSlug = input.integrationKey;
+        const normalizedSlug = normalizeSlug(toolkitSlug);
+
+        // Récupérer les comptes connectés pour cet utilisateur
+        const connectedAccounts = await composio.connectedAccounts.list({
+          userIds: [userId],
+        });
+
+        // Trouver le compte actif correspondant à cette intégration
+        const accountToDelete = connectedAccounts.items.find((account) => {
+          const accountSlug = account.toolkit?.slug ?? "";
+          const normalizedAccountSlug = normalizeSlug(accountSlug);
+          return (
+            normalizedAccountSlug === normalizedSlug &&
+            account.status === "ACTIVE"
+          );
+        });
+
+        if (!accountToDelete) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Intégration non trouvée ou déjà déconnectée",
+          });
+        }
+
+        // Supprimer le compte connecté
+        await composio.connectedAccounts.delete(accountToDelete.id);
+
+        return {
+          success: true as const,
+        };
+      } catch (error) {
+        console.error("Erreur lors de la déconnexion de l'intégration:", error);
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Impossible de déconnecter l'intégration",
+        });
+      }
+    }),
+
+  /**
+   * Récupérer les métriques YouTube d'une intégration connectée
+   */
+  getYouTubeMetrics: protectedProcedure
+    .input(
+      z.object({
+        integrationKey: z.string().min(1, "La clé d'intégration est requise"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        const composio = getComposioClient();
+        const userId = ctx.session.user.id;
+        const toolkitSlug = input.integrationKey;
+        const normalizedSlug = normalizeSlug(toolkitSlug);
+
+        if (normalizedSlug !== "youtube") {
+          return null;
+        }
+
+        // Récupérer le compte connecté pour cet utilisateur
+        const connectedAccounts = await composio.connectedAccounts.list({
+          userIds: [userId],
+        });
+
+        const account = connectedAccounts.items.find((acc) => {
+          const accountSlug = acc.toolkit?.slug ?? "";
+          return (
+            normalizeSlug(accountSlug) === normalizedSlug &&
+            acc.status === "ACTIVE"
+          );
+        });
+
+        if (!account) {
+          return null;
+        }
+
+        // Récupérer le toolkit YouTube pour obtenir la version disponible
+        const youtubeToolkit = await composio.toolkits.get("youtube");
+        const toolkitVersion = youtubeToolkit.meta?.availableVersions?.[0];
+
+        // Utiliser Composio pour exécuter l'action YouTube
+        // Le tool YOUTUBE_GET_CHANNEL_STATISTICS récupère les statistiques de la chaîne
+        try {
+          const executeParams: {
+            userId: string;
+            connectedAccountId: string;
+            version?: string;
+            dangerouslySkipVersionCheck?: boolean;
+            arguments: {
+              mine: boolean;
+              part: string;
+            };
+          } = {
+            userId: userId,
+            connectedAccountId: account.id,
+            arguments: {
+              mine: true, // Récupérer les stats de la chaîne de l'utilisateur authentifié
+              part: "statistics", // Inclure les statistiques
+            },
+          };
+
+          // Utiliser une version spécifique si disponible, sinon utiliser latest avec skip check
+          if (toolkitVersion) {
+            executeParams.version = toolkitVersion;
+          } else {
+            executeParams.version = "latest";
+            executeParams.dangerouslySkipVersionCheck = true;
+          }
+
+          const result = await composio.tools.execute(
+            "YOUTUBE_GET_CHANNEL_STATISTICS",
+            executeParams,
+          );
+
+          if (result?.data) {
+            // La réponse de YOUTUBE_GET_CHANNEL_STATISTICS a une structure spécifique
+            // Elle contient items[0].statistics avec subscriberCount, viewCount, videoCount
+            const responseData = result.data as {
+              items?: Array<{
+                id?: string;
+                statistics?: {
+                  subscriberCount?: string;
+                  viewCount?: string;
+                  videoCount?: string;
+                };
+              }>;
+            };
+
+            const statistics = responseData.items?.[0]?.statistics;
+
+            if (statistics) {
+              // Récupérer également les dernières vidéos pour plus de contexte
+              let latestVideos: Array<{
+                id: string;
+                title: string;
+                publishedAt: string;
+                viewCount?: number;
+              }> = [];
+
+              try {
+                // Récupérer l'ID de la chaîne depuis la réponse ou utiliser mine: true
+                const channelId = responseData.items?.[0]?.id;
+
+                // Récupérer plus de vidéos pour calculer des statistiques pertinentes
+                const videosResult = await composio.tools.execute(
+                  "YOUTUBE_LIST_CHANNEL_VIDEOS",
+                  {
+                    userId: userId,
+                    connectedAccountId: account.id,
+                    version: toolkitVersion ?? "latest",
+                    dangerouslySkipVersionCheck: !toolkitVersion,
+                    arguments: channelId
+                      ? {
+                          channelId: channelId,
+                          maxResults: 10,
+                          part: "snippet",
+                        }
+                      : {
+                          mine: true,
+                          maxResults: 10,
+                          part: "snippet",
+                        },
+                  },
+                );
+
+                if (videosResult?.data) {
+                  const videosData = videosResult.data as {
+                    items?: Array<{
+                      snippet?: {
+                        resourceId?: { videoId?: string };
+                        title?: string;
+                        publishedAt?: string;
+                      };
+                    }>;
+                  };
+
+                  const videoIds =
+                    videosData.items
+                      ?.map((item) => item.snippet?.resourceId?.videoId)
+                      .filter((id): id is string => !!id) ?? [];
+
+                  if (videoIds.length > 0) {
+                    // Récupérer les stats détaillées des vidéos
+                    const videoDetailsResult = await composio.tools.execute(
+                      "YOUTUBE_GET_VIDEO_DETAILS_BATCH",
+                      {
+                        userId: userId,
+                        connectedAccountId: account.id,
+                        version: toolkitVersion ?? "latest",
+                        dangerouslySkipVersionCheck: !toolkitVersion,
+                        arguments: {
+                          id: videoIds,
+                          parts: ["snippet", "statistics"],
+                        },
+                      },
+                    );
+
+                    if (videoDetailsResult?.data) {
+                      const videoDetails = videoDetailsResult.data as {
+                        items?: Array<{
+                          id?: string;
+                          snippet?: {
+                            title?: string;
+                            publishedAt?: string;
+                          };
+                          statistics?: {
+                            viewCount?: string;
+                            likeCount?: string;
+                            commentCount?: string;
+                          };
+                        }>;
+                      };
+
+                      const videosWithStats =
+                        videoDetails.items?.map((video) => ({
+                          id: video.id ?? "",
+                          title: video.snippet?.title ?? "Sans titre",
+                          publishedAt: video.snippet?.publishedAt ?? "",
+                          viewCount: parseInt(
+                            video.statistics?.viewCount ?? "0",
+                            10,
+                          ),
+                          likeCount: parseInt(
+                            video.statistics?.likeCount ?? "0",
+                            10,
+                          ),
+                          commentCount: parseInt(
+                            video.statistics?.commentCount ?? "0",
+                            10,
+                          ),
+                        })) ?? [];
+
+                      // Calculer des métriques pertinentes
+                      const totalViews = videosWithStats.reduce(
+                        (sum, v) => sum + v.viewCount,
+                        0,
+                      );
+                      const totalLikes = videosWithStats.reduce(
+                        (sum, v) => sum + v.likeCount,
+                        0,
+                      );
+                      const totalComments = videosWithStats.reduce(
+                        (sum, v) => sum + v.commentCount,
+                        0,
+                      );
+                      const avgViewsPerVideo =
+                        videosWithStats.length > 0
+                          ? Math.round(totalViews / videosWithStats.length)
+                          : 0;
+                      const engagementRate =
+                        totalViews > 0
+                          ? ((totalLikes + totalComments) / totalViews) * 100
+                          : 0;
+
+                      // Garder les 3 dernières pour l'affichage
+                      latestVideos = videosWithStats.slice(0, 3);
+
+                      return {
+                        status: "connected",
+                        subscribers: parseInt(
+                          statistics.subscriberCount ?? "0",
+                          10,
+                        ),
+                        views: parseInt(statistics.viewCount ?? "0", 10),
+                        videos: parseInt(statistics.videoCount ?? "0", 10),
+                        latestVideos,
+                        // Métriques calculées pertinentes
+                        avgViewsPerVideo,
+                        engagementRate: Math.round(engagementRate * 100) / 100, // 2 décimales
+                        totalLikes,
+                        totalComments,
+                      };
+                    }
+                  }
+                }
+              } catch (videosError) {
+                console.error(
+                  "Erreur lors de la récupération des vidéos:",
+                  videosError,
+                );
+                // Continuer même si la récupération des vidéos échoue
+              }
+
+              return {
+                status: "connected",
+                subscribers: parseInt(statistics.subscriberCount ?? "0", 10),
+                views: parseInt(statistics.viewCount ?? "0", 10),
+                videos: parseInt(statistics.videoCount ?? "0", 10),
+                latestVideos,
+              };
+            }
+          }
+        } catch (actionError) {
+          console.error(
+            "Erreur lors de l'exécution de l'action YouTube:",
+            actionError,
+          );
+          // En cas d'erreur, retourner quand même le statut connecté
+        }
+
+        return {
+          status: "connected",
+          subscribers: 0,
+          views: 0,
+          videos: 0,
+        };
+      } catch (error) {
+        console.error(
+          "Erreur lors de la récupération des métriques YouTube:",
+          error,
+        );
+        return null;
+      }
+    }),
+
+  /**
+   * Récupérer les métriques Instagram d'une intégration connectée
+   */
+  getInstagramMetrics: protectedProcedure
+    .input(
+      z.object({
+        integrationKey: z.string().min(1, "La clé d'intégration est requise"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        const composio = getComposioClient();
+        const userId = ctx.session.user.id;
+        const toolkitSlug = input.integrationKey;
+        const normalizedSlug = normalizeSlug(toolkitSlug);
+
+        if (normalizedSlug !== "instagram") {
+          return null;
+        }
+
+        // Récupérer le compte connecté pour cet utilisateur
+        const connectedAccounts = await composio.connectedAccounts.list({
+          userIds: [userId],
+        });
+
+        const account = connectedAccounts.items.find((acc) => {
+          const accountSlug = acc.toolkit?.slug ?? "";
+          return (
+            normalizeSlug(accountSlug) === normalizedSlug &&
+            acc.status === "ACTIVE"
+          );
+        });
+
+        if (!account) {
+          return null;
+        }
+
+        // Récupérer le toolkit Instagram pour obtenir la version disponible
+        const instagramToolkit = await composio.toolkits.get("instagram");
+        const toolkitVersion = instagramToolkit.meta?.availableVersions?.[0];
+
+        try {
+          // Récupérer les infos de base de l'utilisateur Instagram
+          const userInfoResult = await composio.tools.execute(
+            "INSTAGRAM_GET_USER_INFO",
+            {
+              userId: userId,
+              connectedAccountId: account.id,
+              version: toolkitVersion ?? "latest",
+              dangerouslySkipVersionCheck: !toolkitVersion,
+              arguments: {
+                ig_user_id: "me", // Utiliser le compte connecté
+              },
+            },
+          );
+
+          if (!userInfoResult?.data) {
+            console.error("Instagram: Pas de données dans userInfoResult");
+            return null;
+          }
+
+          // La réponse peut être directement l'objet ou dans une structure data
+          const responseData = userInfoResult.data as
+            | {
+                followers_count?: number;
+                media_count?: number;
+                username?: string;
+                id?: string;
+              }
+            | {
+                data?: {
+                  followers_count?: number;
+                  media_count?: number;
+                  username?: string;
+                  id?: string;
+                };
+              };
+
+          const userInfo =
+            "data" in responseData && responseData.data
+              ? responseData.data
+              : (responseData as {
+                  followers_count?: number;
+                  media_count?: number;
+                  username?: string;
+                  id?: string;
+                });
+
+          const igUserId = userInfo.id;
+          if (!igUserId) {
+            console.error("Instagram: Pas d'ID utilisateur trouvé");
+            return null;
+          }
+
+          // Récupérer les insights du compte (reach, engagement)
+          let reach = 0;
+          let engagementRate = 0;
+          let totalLikes = 0;
+          let totalComments = 0;
+
+          try {
+            const insightsResult = await composio.tools.execute(
+              "INSTAGRAM_GET_USER_INSIGHTS",
+              {
+                userId: userId,
+                connectedAccountId: account.id,
+                version: toolkitVersion ?? "latest",
+                dangerouslySkipVersionCheck: !toolkitVersion,
+                arguments: {
+                  ig_user_id: igUserId,
+                  metric: ["reach", "likes", "comments"],
+                  period: "days_28",
+                  metric_type: "total_value",
+                },
+              },
+            );
+
+            if (insightsResult?.data) {
+              const insights = insightsResult.data as {
+                data?: Array<{
+                  name?: string;
+                  values?: Array<{
+                    value?: number;
+                  }>;
+                }>;
+              };
+
+              insights.data?.forEach((metric) => {
+                const value = metric.values?.[0]?.value ?? 0;
+                if (metric.name === "reach") {
+                  reach = value;
+                } else if (metric.name === "likes") {
+                  totalLikes = value;
+                } else if (metric.name === "comments") {
+                  totalComments = value;
+                }
+              });
+
+              // Calculer le taux d'engagement
+              if (reach > 0) {
+                engagementRate = ((totalLikes + totalComments) / reach) * 100;
+              }
+            }
+          } catch (insightsError) {
+            console.error(
+              "Erreur lors de la récupération des insights:",
+              insightsError,
+            );
+            // Continuer même si les insights échouent
+          }
+
+          // Récupérer les derniers posts
+          const latestPosts: Array<{
+            id: string;
+            caption?: string;
+            likeCount?: number;
+            commentCount?: number;
+            mediaType?: string;
+          }> = [];
+
+          try {
+            const mediaResult = await composio.tools.execute(
+              "INSTAGRAM_GET_USER_MEDIA",
+              {
+                userId: userId,
+                connectedAccountId: account.id,
+                version: toolkitVersion ?? "latest",
+                dangerouslySkipVersionCheck: !toolkitVersion,
+                arguments: {
+                  ig_user_id: igUserId,
+                  limit: 10,
+                },
+              },
+            );
+
+            if (mediaResult?.data) {
+              const mediaData = mediaResult.data as {
+                data?: Array<{
+                  id?: string;
+                  caption?: string;
+                  like_count?: number;
+                  comments_count?: number;
+                  media_type?: string;
+                }>;
+              };
+
+              const mediaItems = mediaData.data ?? [];
+
+              // Récupérer les insights pour chaque post
+              for (const media of mediaItems.slice(0, 5)) {
+                if (!media.id) continue;
+
+                try {
+                  const postInsights = await composio.tools.execute(
+                    "INSTAGRAM_GET_POST_INSIGHTS",
+                    {
+                      userId: userId,
+                      connectedAccountId: account.id,
+                      version: toolkitVersion ?? "latest",
+                      dangerouslySkipVersionCheck: !toolkitVersion,
+                      arguments: {
+                        ig_post_id: media.id,
+                        metric_preset: "auto_safe",
+                      },
+                    },
+                  );
+
+                  if (postInsights?.data) {
+                    const insights = postInsights.data as {
+                      data?: Array<{
+                        name?: string;
+                        values?: Array<{
+                          value?: number;
+                        }>;
+                      }>;
+                    };
+
+                    let likes = media.like_count ?? 0;
+                    let comments = media.comments_count ?? 0;
+
+                    insights.data?.forEach((metric) => {
+                      const value = metric.values?.[0]?.value ?? 0;
+                      if (metric.name === "likes") {
+                        likes = value;
+                      } else if (metric.name === "comments") {
+                        comments = value;
+                      }
+                    });
+
+                    latestPosts.push({
+                      id: media.id,
+                      caption: media.caption?.substring(0, 100) ?? "",
+                      likeCount: likes,
+                      commentCount: comments,
+                      mediaType: media.media_type,
+                    });
+                  } else {
+                    // Fallback sur les données de base
+                    latestPosts.push({
+                      id: media.id,
+                      caption: media.caption?.substring(0, 100) ?? "",
+                      likeCount: media.like_count ?? 0,
+                      commentCount: media.comments_count ?? 0,
+                      mediaType: media.media_type,
+                    });
+                  }
+                } catch (postError) {
+                  console.error(`Erreur pour le post ${media.id}:`, postError);
+                  // Ajouter quand même le post avec les données de base
+                  latestPosts.push({
+                    id: media.id,
+                    caption: media.caption?.substring(0, 100) ?? "",
+                    likeCount: media.like_count ?? 0,
+                    commentCount: media.comments_count ?? 0,
+                    mediaType: media.media_type,
+                  });
+                }
+              }
+            }
+          } catch (mediaError) {
+            console.error(
+              "Erreur lors de la récupération des posts:",
+              mediaError,
+            );
+            // Continuer même si la récupération des posts échoue
+          }
+
+          // Calculer la moyenne de likes par post
+          const avgLikesPerPost =
+            latestPosts.length > 0
+              ? Math.round(
+                  latestPosts.reduce((sum, p) => sum + (p.likeCount ?? 0), 0) /
+                    latestPosts.length,
+                )
+              : 0;
+
+          return {
+            status: "connected",
+            followers: userInfo.followers_count ?? 0,
+            posts: userInfo.media_count ?? 0,
+            username: userInfo.username,
+            reach,
+            engagementRate: Math.round(engagementRate * 100) / 100,
+            totalLikes,
+            totalComments,
+            avgLikesPerPost,
+            latestPosts: latestPosts.slice(0, 3),
+          };
+        } catch (actionError) {
+          console.error(
+            "Erreur lors de l'exécution de l'action Instagram:",
+            actionError,
+          );
+          // Retourner un objet avec status pour éviter les erreurs
+          return {
+            status: "error" as const,
+            followers: 0,
+            posts: 0,
+            reach: 0,
+            engagementRate: 0,
+            totalLikes: 0,
+            totalComments: 0,
+            avgLikesPerPost: 0,
+            latestPosts: [],
+          };
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors de la récupération des métriques Instagram:",
+          error,
+        );
+        // Retourner un objet avec status pour éviter les erreurs
+        return {
+          status: "error" as const,
+          followers: 0,
+          posts: 0,
+          reach: 0,
+          engagementRate: 0,
+          totalLikes: 0,
+          totalComments: 0,
+          avgLikesPerPost: 0,
+          latestPosts: [],
+        };
+      }
+    }),
+
+  /**
+   * Récupérer les métriques d'une intégration connectée (générique)
+   */
+  getMetrics: protectedProcedure
+    .input(
+      z.object({
+        integrationKey: z.string().min(1, "La clé d'intégration est requise"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        const composio = getComposioClient();
+        const userId = ctx.session.user.id;
+        const toolkitSlug = input.integrationKey;
+        const normalizedSlug = normalizeSlug(toolkitSlug);
+
+        // Pour YouTube, utiliser la route spécifique
+        if (normalizedSlug === "youtube") {
+          // Appeler la route YouTube spécifique
+          // Pour l'instant, on retourne null et on laisse le frontend gérer
+          return null;
+        }
+
+        // Pour les autres intégrations, retourner juste le statut
+        const connectedAccounts = await composio.connectedAccounts.list({
+          userIds: [userId],
+        });
+
+        const account = connectedAccounts.items.find((acc) => {
+          const accountSlug = acc.toolkit?.slug ?? "";
+          return (
+            normalizeSlug(accountSlug) === normalizedSlug &&
+            acc.status === "ACTIVE"
+          );
+        });
+
+        if (!account) {
+          return null;
+        }
+
+        return {
+          status: "connected",
+        };
+      } catch (error) {
+        console.error("Erreur lors de la récupération des métriques:", error);
+        return null;
+      }
+    }),
+
+  /**
+   * Finaliser l'onboarding des intégrations
+   */
+  completeOnboarding: protectedProcedure.mutation(async ({ ctx: _ctx }) => {
+    // Marquer que l'onboarding des intégrations est complété
+    // Vous pouvez ajouter un champ `integrationsOnboardingCompleted` dans le User model si besoin
+    // Pour l'instant, on considère que c'est complété une fois cette route appelée
+    // ctx.session.user.id est disponible si besoin pour une utilisation future
+
+    return {
+      success: true as const,
+    };
+  }),
+});

@@ -132,3 +132,31 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+/**
+ * Admin procedure - requires admin role
+ *
+ * This procedure checks if the user has the "admin" role.
+ * Better Auth stores roles as comma-separated strings in the user.role field.
+ *
+ * @see https://trpc.io/docs/procedures
+ */
+export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  const userRole = ctx.session.user.role;
+  const isAdmin = userRole?.split(",").includes("admin") ?? false;
+
+  if (!isAdmin) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Vous devez être administrateur pour accéder à cette ressource.",
+    });
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      // Type-safe admin context
+      isAdmin: true as const,
+    },
+  });
+});

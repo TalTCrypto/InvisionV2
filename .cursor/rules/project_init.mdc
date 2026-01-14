@@ -1,0 +1,613 @@
+---
+description: "Guide d'initialisation d'un projet T3 : configuration, structure, dépendances et bonnes pratiques."
+globs:
+  - "package.json"
+  - "next.config.*"
+  - "tsconfig.json"
+  - "tailwind.config.*"
+  - ".env*"
+  - "prisma/schema.prisma"
+alwaysApply: false
+---
+
+# Guide d'Initialisation Projet T3
+
+## Stack Technique
+
+- **Framework** : Next.js 15+ + App Router
+- **Language** : TypeScript (strict)
+- **API** : tRPC (type-safe)
+- **Styling** : Tailwind CSS + shadcn/ui
+- **State** : Zustand + Nuqs + tRPC React Query
+- **Forms** : React Hook Form + Zod
+- **i18n** : next-intl
+- **Dates** : date-fns
+- **Auth** : Better Auth
+- **DB** : Prisma + PostgreSQL
+- **Icons** : Lucide React
+
+---
+
+## 1. Création du Projet
+
+### Initialisation T3
+```bash
+npm create t3-app@latest my-app
+cd my-app
+```
+
+### Options recommandées
+- ✅ TypeScript
+- ✅ Tailwind CSS
+- ✅ tRPC
+- ✅ Better Auth
+- ✅ Prisma
+- ✅ PostgreSQL
+- ✅ App Router
+- ✅ ESLint/Prettier
+- ✅ Import alias `~/`
+
+---
+
+## 2. Installation des Dépendances Additionnelles
+
+### UI et Styling
+```bash
+# shadcn/ui
+npx shadcn@latest init
+
+# Composants essentiels
+npx shadcn@latest add button input label card badge dialog dropdown-menu form select textarea toast skeleton
+
+# Utilitaires
+npm install lucide-react class-variance-authority clsx tailwind-merge
+```
+
+### State Management
+```bash
+npm install zustand nuqs
+```
+
+### Formulaires
+```bash
+npm install react-hook-form @hookform/resolvers
+```
+
+### i18n et Dates
+```bash
+npm install next-intl date-fns
+```
+
+---
+
+## 3. Structure du Projet
+
+### Créer la Structure
+```bash
+mkdir -p src/{components/{ui,features,layout},hooks,stores,lib/{utils,validations}}
+```
+
+### Structure Finale
+```
+src/
+├── app/
+│   ├── (auth)/
+│   │   ├── login/
+│   │   │   └── page.tsx
+│   │   └── layout.tsx
+│   ├── (dashboard)/
+│   │   ├── dashboard/
+│   │   │   └── page.tsx
+│   │   └── layout.tsx
+│   ├── api/
+│   │   ├── auth/
+│   │   │   └── [...all]/
+│   │   │       └── route.ts
+│   │   └── trpc/
+│   │       └── [trpc]/
+│   │           └── route.ts
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── ui/                        # shadcn/ui components
+│   ├── features/                  # Composants par feature
+│   └── layout/                    # Composants de layout
+├── hooks/                         # Custom hooks
+├── stores/                        # Zustand stores
+├── lib/
+│   ├── utils.ts                   # Utilitaires (cn, etc.)
+│   └── validations/               # Schémas Zod
+├── server/
+│   ├── api/
+│   │   ├── routers/
+│   │   │   └── post.ts
+│   │   ├── root.ts
+│   │   └── trpc.ts
+│   ├── better-auth/
+│   │   └── config.ts
+│   └── db.ts
+├── trpc/
+│   ├── react.tsx
+│   ├── server.ts
+│   └── query-client.ts
+└── styles/
+    └── globals.css
+```
+
+---
+
+## 4. Fichiers de Configuration
+
+### next.config.ts
+```typescript
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.example.com",
+      },
+    ],
+  },
+};
+
+export default nextConfig;
+```
+
+### tsconfig.json
+```json
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "checkJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "~/*": ["./src/*"]
+    }
+  },
+  "include": [
+    ".eslintrc.cjs",
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}
+```
+
+### tailwind.config.ts
+```typescript
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  darkMode: ["class"],
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate")],
+};
+
+export default config;
+```
+
+### .prettierrc
+```json
+{
+  "semi": false,
+  "singleQuote": true,
+  "tabWidth": 2,
+  "trailingComma": "es5",
+  "printWidth": 100,
+  "plugins": ["prettier-plugin-tailwindcss"]
+}
+```
+
+---
+
+## 5. Fichiers de Base
+
+### src/lib/utils.ts
+```typescript
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+```
+
+### src/stores/uiStore.ts
+```typescript
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
+
+interface UIState {
+  isSidebarOpen: boolean;
+  isModalOpen: boolean;
+  modalContent: React.ReactNode | null;
+  theme: "light" | "dark" | "system";
+
+  toggleSidebar: () => void;
+  openModal: (content: React.ReactNode) => void;
+  closeModal: () => void;
+  setTheme: (theme: UIState["theme"]) => void;
+}
+
+export const useUIStore = create<UIState>()(
+  devtools(
+    (set) => ({
+      isSidebarOpen: true,
+      isModalOpen: false,
+      modalContent: null,
+      theme: "system",
+
+      toggleSidebar: () =>
+        set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+
+      openModal: (content) =>
+        set({ isModalOpen: true, modalContent: content }),
+
+      closeModal: () =>
+        set({ isModalOpen: false, modalContent: null }),
+
+      setTheme: (theme) => set({ theme }),
+    }),
+    { name: "UIStore" }
+  )
+);
+```
+
+### src/app/layout.tsx
+```typescript
+import "~/styles/globals.css";
+import { type Metadata } from "next";
+import { Geist } from "next/font/google";
+import { TRPCReactProvider } from "~/trpc/react";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
+
+export const metadata: Metadata = {
+  title: "Mon App",
+  description: "Description de mon application",
+};
+
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+});
+
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="fr" className={geist.variable}>
+      <body>
+        <TRPCReactProvider>
+          <NuqsAdapter>{children}</NuqsAdapter>
+        </TRPCReactProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+---
+
+## 6. Prisma Schema
+
+### Configuration
+```prisma
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Models métier
+model Post {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  createdById String
+
+  @@index([name])
+}
+
+// Models Better Auth
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  posts         Post[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime  @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+```
+
+---
+
+## 7. Variables d'Environnement
+
+### .env.example
+```env
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/mydb"
+
+# Auth (Better Auth)
+BETTER_AUTH_SECRET="your-secret-key-min-32-characters-long"
+BETTER_AUTH_GITHUB_CLIENT_ID=""
+BETTER_AUTH_GITHUB_CLIENT_SECRET=""
+
+# App
+NODE_ENV="development"
+```
+
+### src/env.js
+```typescript
+import { createEnv } from "@t3-oss/env-nextjs";
+import { z } from "zod";
+
+export const env = createEnv({
+  server: {
+    BETTER_AUTH_SECRET:
+      process.env.NODE_ENV === "production"
+        ? z.string()
+        : z.string().optional(),
+    BETTER_AUTH_GITHUB_CLIENT_ID: z.string(),
+    BETTER_AUTH_GITHUB_CLIENT_SECRET: z.string(),
+    DATABASE_URL: z.string().url(),
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
+  client: {
+    // NEXT_PUBLIC_CLIENTVAR: z.string(),
+  },
+  runtimeEnv: {
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BETTER_AUTH_GITHUB_CLIENT_ID: process.env.BETTER_AUTH_GITHUB_CLIENT_ID,
+    BETTER_AUTH_GITHUB_CLIENT_SECRET:
+      process.env.BETTER_AUTH_GITHUB_CLIENT_SECRET,
+    DATABASE_URL: process.env.DATABASE_URL,
+    NODE_ENV: process.env.NODE_ENV,
+  },
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+  emptyStringAsUndefined: true,
+});
+```
+
+---
+
+## 8. Scripts Package.json
+
+```json
+{
+  "scripts": {
+    "build": "next build",
+    "check": "next lint && tsc --noEmit",
+    "db:generate": "prisma migrate dev",
+    "db:migrate": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "dev": "next dev --turbo",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
+    "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
+    "postinstall": "prisma generate",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "preview": "next build && next start",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  }
+}
+```
+
+---
+
+## 9. Commandes de Démarrage
+
+### Initialisation Base de Données
+```bash
+# Générer le client Prisma
+npm run db:generate
+
+# Créer les tables (développement)
+npm run db:push
+
+# Ou créer une migration
+npm run db:migrate
+```
+
+### Lancer le Projet
+```bash
+# Développement
+npm run dev
+
+# Production
+npm run build
+npm start
+```
+
+### Vérifications
+```bash
+# Type checking
+npm run typecheck
+
+# Linting
+npm run lint
+
+# Format
+npm run format:check
+```
+
+---
+
+## 10. Checklist Initialisation
+
+### Configuration
+- [ ] Projet T3 créé
+- [ ] Tailwind CSS configuré
+- [ ] shadcn/ui initialisé
+- [ ] ESLint + Prettier configurés
+- [ ] Path aliases `~/` configurés
+
+### Dépendances
+- [ ] Zustand installé
+- [ ] Nuqs installé
+- [ ] React Hook Form + Zod installés
+- [ ] next-intl installé
+- [ ] date-fns installé
+- [ ] Better Auth configuré
+- [ ] Prisma installé et configuré
+- [ ] Composants shadcn/ui essentiels ajoutés
+
+### Structure
+- [ ] Dossiers créés selon la structure
+- [ ] Fichiers de base créés
+- [ ] Providers configurés dans `layout.tsx`
+
+### Base de Données
+- [ ] Schema Prisma créé
+- [ ] Models Better Auth ajoutés
+- [ ] Variables d'environnement configurées
+- [ ] Client Prisma généré
+- [ ] Tables créées
+
+### Git
+- [ ] .gitignore configuré
+- [ ] Premier commit effectué
+
+---
+
+**Règle d'or** : Utiliser `create-t3-app` pour initialiser le projet, puis ajouter les dépendances additionnelles (shadcn/ui, Zustand, Nuqs) selon les besoins.

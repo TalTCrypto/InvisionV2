@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Linter et formatter les fichiers modifiés uniquement
+npx lint-staged || {
+  echo "❌ Lint-staged a échoué. Veuillez corriger les erreurs."
+  exit 1
+}
+
+# Vérifier que Prisma est à jour si le schema a changé
+if git diff --cached --name-only | grep -q "prisma/schema.prisma"; then
+  echo "📦 Formatage du schéma Prisma..."
+  npx prisma format || {
+    echo "❌ Erreur lors du formatage du schéma Prisma."
+    exit 1
+  }
+  echo "📦 Génération du client Prisma..."
+  npm run postinstall || {
+    echo "❌ Erreur lors de la génération du client Prisma."
+    exit 1
+  }
+  # Ajouter les fichiers générés si nécessaire
+  git add prisma/schema.prisma generated/prisma/ 2>/dev/null || true
+fi
+
+echo "✅ Pre-commit checks passed!"

@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-push checks..."
+
+# Linter tout le projet
+echo "📝 Linting..."
+npm run lint || {
+  echo "❌ Erreurs de linting détectées. Corrigez-les avant de push."
+  exit 1
+}
+
+# Vérifier le formatage
+echo "✨ Vérification du formatage..."
+npm run format:check || {
+  echo "⚠️  Fichiers non formatés détectés."
+  echo "💡 Exécutez 'npm run format:write' pour corriger automatiquement."
+  echo "⚠️  Push autorisé mais pensez à formater vos fichiers."
+}
+
+# Vérifier que Prisma est synchronisé
+echo "📦 Vérification Prisma..."
+npx prisma validate || {
+  echo "❌ Erreur dans le schéma Prisma. Corrigez avant de push."
+  exit 1
+}
+
+echo "✅ Pre-push checks passed!"

@@ -1,0 +1,638 @@
+---
+description: "Guide complet pour créer des composants Next.js avec shadcn/ui et tRPC : Server/Client Components, patterns, accessibilité et bonnes pratiques."
+globs:
+  - "src/components/**/*.{ts,tsx}"
+  - "src/app/**/components/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Guide Composants T3 + shadcn/ui
+
+## 🚨 RÈGLE ABSOLUE - LIRE EN PREMIER
+
+> **⚠️ OBLIGATOIRE** : Avant de créer quoi que ce soit, consultez `components_usage_policy.mdc` et `ui_components_reference.mdc`
+> 
+> **INTERDICTIONS STRICTES** :
+> - ❌ JAMAIS de HTML brut (button, input, div stylisés)
+> - ❌ JAMAIS de réinvention de composants
+> - ❌ JAMAIS de création sans vérifier d'abord
+> 
+> **OBLIGATOIRE** :
+> - ✅ TOUJOURS utiliser les composants existants dans `src/components/ui/`
+> - ✅ TOUJOURS consulter la référence avant de créer
+> - ✅ TOUJOURS demander avant de créer un nouveau composant
+
+## Stack Technique
+
+- **UI** : shadcn/ui (Radix UI + Tailwind CSS)
+- **Variants** : class-variance-authority (CVA)
+- **Icons** : Lucide React
+- **API** : tRPC React
+
+> **📚 Référence complète** : Consultez `ui_components_reference.mdc` pour la liste complète de tous les composants UI disponibles organisés par catégories (60+ composants).
+
+---
+
+## 1. Server vs Client Components
+
+### Quand utiliser Server Components
+```typescript
+// ✅ Server Component - Pas de 'use client'
+// src/components/features/posts/PostsListServer.tsx
+
+import { api, HydrateClient } from "~/trpc/server";
+import { PostsListClient } from "./PostsListClient";
+
+export async function PostsListServer() {
+  // Accès direct à tRPC - Server Component
+  const posts = await api.post.getAll({
+    page: 1,
+    pageSize: 20,
+  });
+
+  return (
+    <HydrateClient>
+      <PostsListClient initialPosts={posts.posts} />
+    </HydrateClient>
+  );
+}
+```
+
+### Quand utiliser Client Components
+```typescript
+// ✅ Client Component - Interactivité requise
+// src/components/features/posts/PostCard.tsx
+"use client";
+
+import { useState } from "react";
+import { api } from "~/trpc/react";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Button } from "~/components/ui/button";
+import { Badge } from "~/components/ui/badge";
+import { MoreHorizontal, Edit, Trash } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+
+interface PostCardProps {
+  post: Post;
+  onEdit?: (post: Post) => void;
+}
+
+export function PostCard({ post, onEdit }: PostCardProps) {
+  const utils = api.useUtils();
+
+  const deletePost = api.post.delete.useMutation({
+    onSuccess: async () => {
+      await utils.post.invalidate();
+    },
+  });
+
+  const handleDelete = async () => {
+    if (confirm("Supprimer ce post ?")) {
+      await deletePost.mutateAsync({ id: post.id });
+    }
+  };
+
+  return (
+    <Card className="group relative">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{post.name}</CardTitle>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">Actions</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onEdit?.(post)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Modifier
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleDelete}
+              disabled={deletePost.isPending}
+              className="text-destructive"
+            >
+              <Trash className="mr-2 h-4 w-4" />
+              {deletePost.isPending ? "Suppression..." : "Supprimer"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">
+          {new Date(post.createdAt).toLocaleDateString("fr-FR")}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### Pattern de Composition
+```typescript
+// ✅ Pattern recommandé : Server wrapper + Client interactif
+// src/app/posts/page.tsx
+
+import { Suspense } from "react";
+import { PostsListServer } from "~/components/features/posts/PostsListServer";
+import { PostsFilters } from "~/components/features/posts/PostsFilters";
+import { PostsListSkeleton } from "~/components/skeletons/PostsListSkeleton";
+
+export default function PostsPage() {
+  return (
+    <div className="space-y-6">
+      {/* Client Component - Interactif */}
+      <PostsFilters />
+
+      {/* Server Component avec Suspense */}
+      <Suspense fallback={<PostsListSkeleton />}>
+        <PostsListServer />
+      </Suspense>
+    </div>
+  );
+}
+```
+
+---
+
+## 2. Composants UI (shadcn/ui)
+
+### Anatomie d'un Composant UI
+```typescript
+// src/components/ui/button.tsx
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
+import { Loader2 } from "lucide-react";
+import { cn } from "~/lib/utils";
+
+// 1. Définir les variants avec CVA
+const buttonVariants = cva(
+  // Base styles
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline:
+          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-8",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+
+// 2. Interface avec extensions
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
+  isLoading?: boolean;
+}
+
+// 3. Composant avec forwardRef
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      className,
+      variant,
+      size,
+      asChild = false,
+      isLoading,
+      disabled,
+      children,
+      ...props
+    },
+    ref
+  ) => {
+    const Comp = asChild ? Slot : "button";
+
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        disabled={disabled || isLoading}
+        {...props}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Chargement...
+          </>
+        ) : (
+          children
+        )}
+      </Comp>
+    );
+  }
+);
+Button.displayName = "Button";
+
+export { Button, buttonVariants };
+```
+
+---
+
+## 3. Composants Feature avec tRPC
+
+### Structure d'un Composant Feature
+```typescript
+// src/components/features/posts/PostForm.tsx
+"use client";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { api } from "~/trpc/react";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Textarea } from "~/components/ui/textarea";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "~/components/ui/form";
+import { createPostSchema, type CreatePostInput } from "~/lib/validations/post";
+
+interface PostFormProps {
+  onSuccess?: (post: Post) => void;
+  onCancel?: () => void;
+  defaultValues?: Partial<CreatePostInput>;
+  mode?: "create" | "edit";
+}
+
+export function PostForm({
+  onSuccess,
+  onCancel,
+  defaultValues,
+  mode = "create",
+}: PostFormProps) {
+  const utils = api.useUtils();
+
+  const form = useForm<CreatePostInput>({
+    resolver: zodResolver(createPostSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      ...defaultValues,
+    },
+  });
+
+  const createPost = api.post.create.useMutation({
+    onSuccess: async (post) => {
+      await utils.post.invalidate();
+      form.reset();
+      onSuccess?.(post);
+    },
+  });
+
+  const updatePost = api.post.update.useMutation({
+    onSuccess: async (post) => {
+      await utils.post.invalidate();
+      onSuccess?.(post);
+    },
+  });
+
+  const onSubmit = async (data: CreatePostInput) => {
+    try {
+      if (mode === "create") {
+        await createPost.mutateAsync(data);
+      } else {
+        // updatePost.mutateAsync({ id: ..., ...data });
+      }
+    } catch (error) {
+      // Géré par tRPC
+    }
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nom</FormLabel>
+              <FormControl>
+                <Input placeholder="Nom du post" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Description du post"
+                  className="resize-none"
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                Optionnel - Max 500 caractères
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex justify-end gap-3">
+          {onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Annuler
+            </Button>
+          )}
+          <Button
+            type="submit"
+            isLoading={createPost.isPending || updatePost.isPending}
+          >
+            {mode === "create" ? "Créer" : "Mettre à jour"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+```
+
+---
+
+## 4. Composants de Layout
+
+### Header
+```typescript
+// src/components/layout/Header.tsx
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu } from "lucide-react";
+import { Button } from "~/components/ui/button";
+import { useUIStore } from "~/stores/uiStore";
+import { cn } from "~/lib/utils";
+
+const navigation = [
+  { name: "dashboard", href: "/dashboard" },
+  { name: "posts", href: "/posts" },
+  { name: "settings", href: "/settings" },
+];
+
+export function Header() {
+  const pathname = usePathname();
+  const { toggleSidebar } = useUIStore();
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-14 items-center">
+        {/* Mobile menu button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="mr-2 md:hidden"
+          onClick={toggleSidebar}
+        >
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Menu</span>
+        </Button>
+
+        {/* Logo */}
+        <Link href="/dashboard" className="mr-6 flex items-center space-x-2">
+          <span className="font-bold">MonApp</span>
+        </Link>
+
+        {/* Navigation */}
+        <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+          {navigation.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "transition-colors hover:text-foreground/80",
+                pathname === item.href
+                  ? "text-foreground"
+                  : "text-foreground/60"
+              )}
+            >
+              {item.name}
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </header>
+  );
+}
+```
+
+---
+
+## 5. Skeletons et Loading States
+
+### Skeleton Components
+```typescript
+// src/components/skeletons/PostsListSkeleton.tsx
+import { Skeleton } from "~/components/ui/skeleton";
+import { Card, CardContent, CardHeader } from "~/components/ui/card";
+
+export function PostsListSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <PostCardSkeleton key={i} />
+      ))}
+    </div>
+  );
+}
+
+export function PostCardSkeleton() {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-8 w-8 rounded" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-4 w-full mb-2" />
+        <Skeleton className="h-4 w-3/4" />
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+---
+
+## 6. Modals et Dialogs
+
+### Dialog Pattern avec tRPC
+```typescript
+// src/components/features/posts/CreatePostDialog.tsx
+"use client";
+
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog";
+import { PostForm } from "./PostForm";
+
+export function CreatePostDialog() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          Créer un post
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Créer un post</DialogTitle>
+          <DialogDescription>
+            Remplissez les informations pour créer un nouveau post.
+          </DialogDescription>
+        </DialogHeader>
+        <PostForm
+          onSuccess={() => setOpen(false)}
+          onCancel={() => setOpen(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+---
+
+## 7. Accessibilité (a11y)
+
+### Checklist par Composant
+```typescript
+// ✅ Composant accessible
+// src/components/ui/input.tsx
+import * as React from "react";
+import { cn } from "~/lib/utils";
+
+export interface InputProps
+  extends React.InputHTMLAttributes<HTMLInputElement> {
+  error?: boolean;
+  errorMessage?: string;
+}
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, error, errorMessage, id, ...props }, ref) => {
+    const inputId = id || React.useId();
+    const errorId = `${inputId}-error`;
+
+    return (
+      <div className="relative">
+        <input
+          type={type}
+          id={inputId}
+          className={cn(
+            "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+            "file:border-0 file:bg-transparent file:text-sm file:font-medium",
+            "placeholder:text-muted-foreground",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            error && "border-destructive focus-visible:ring-destructive",
+            className
+          )}
+          ref={ref}
+          aria-invalid={error}
+          aria-describedby={error && errorMessage ? errorId : undefined}
+          {...props}
+        />
+        {error && errorMessage && (
+          <p
+            id={errorId}
+            className="mt-1 text-sm text-destructive"
+            role="alert"
+          >
+            {errorMessage}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
+Input.displayName = "Input";
+
+export { Input };
+```
+
+---
+
+## 8. Checklist Composant
+
+### Avant Création
+- [ ] Déterminer Server vs Client Component
+- [ ] Définir les props et types
+- [ ] Identifier les variants nécessaires
+- [ ] Planifier l'accessibilité
+
+### Implémentation
+- [ ] forwardRef pour les composants UI
+- [ ] CVA pour les variants
+- [ ] cn() pour les classes conditionnelles
+- [ ] Types TypeScript complets
+- [ ] Props par défaut définies
+
+### tRPC Integration
+- [ ] Hooks tRPC utilisés correctement
+- [ ] Optimistic updates si nécessaire
+- [ ] Error handling approprié
+- [ ] Loading states gérés
+
+### Accessibilité
+- [ ] Labels et aria-* appropriés
+- [ ] Navigation clavier fonctionnelle
+- [ ] Focus visible et logique
+- [ ] Screen reader compatible
+- [ ] Contraste suffisant
+
+---
+
+**Règle d'or** : Un composant doit être réutilisable, accessible, et testable. Server Components par défaut, Client Components seulement pour l'interactivité. Utiliser tRPC React pour toutes les opérations API.

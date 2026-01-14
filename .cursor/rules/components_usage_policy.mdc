@@ -1,0 +1,252 @@
+---
+description: "RÈGLE ABSOLUE : Utilisation OBLIGATOIRE des composants UI existants - Zéro HTML brut, zéro réinvention de composants."
+globs:
+  - "src/**/*.{ts,tsx}"
+  - "src/components/**/*.{ts,tsx}"
+  - "src/app/**/*.{ts,tsx}"
+alwaysApply: true
+---
+
+# 🚨 RÈGLE ABSOLUE - Utilisation des Composants UI
+
+## ⛔ INTERDICTIONS STRICTES
+
+### ❌ INTERDIT - HTML Brut
+```typescript
+// ❌ JAMAIS FAIRE ÇA
+<div className="flex items-center">
+  <button onClick={handleClick}>Cliquer</button>
+</div>
+
+// ❌ JAMAIS FAIRE ÇA
+<input type="text" className="border rounded" />
+
+// ❌ JAMAIS FAIRE ÇA
+<button className="bg-blue-500 text-white px-4 py-2 rounded">
+  Submit
+</button>
+```
+
+### ❌ INTERDIT - Réinvention de Composants
+```typescript
+// ❌ JAMAIS créer un nouveau Button
+function MyButton({ children, onClick }) {
+  return <button onClick={onClick}>{children}</button>
+}
+
+// ❌ JAMAIS créer un nouveau Input
+function MyInput({ value, onChange }) {
+  return <input value={value} onChange={onChange} />
+}
+
+// ❌ JAMAIS créer un nouveau Card
+function MyCard({ children }) {
+  return <div className="border rounded p-4">{children}</div>
+}
+```
+
+### ❌ INTERDIT - Composants Basiques Custom
+```typescript
+// ❌ JAMAIS créer un composant pour quelque chose qui existe déjà
+// Si vous avez besoin d'un bouton → UTILISER Button existant
+// Si vous avez besoin d'un input → UTILISER Input existant
+// Si vous avez besoin d'une card → UTILISER MagicCard, NeonGradientCard, etc.
+```
+
+---
+
+## ✅ OBLIGATOIRE - Utiliser les Composants Existants
+
+### ✅ TOUJOURS Utiliser les Composants UI
+```typescript
+// ✅ TOUJOURS utiliser Button
+import { Button } from "~/components/ui/button"
+
+<Button onClick={handleClick}>Cliquer</Button>
+
+// ✅ TOUJOURS utiliser Input
+import { Input } from "~/components/ui/input"
+
+<Input value={value} onChange={onChange} />
+
+// ✅ TOUJOURS utiliser les Cards existantes
+import { MagicCard } from "~/components/ui/magic-card"
+import { NeonGradientCard } from "~/components/ui/neon-gradient-card"
+
+<MagicCard>Content</MagicCard>
+```
+
+### ✅ Processus OBLIGATOIRE
+
+1. **AVANT de créer quoi que ce soit** :
+   - ✅ Consulter `ui_components_reference.mdc`
+   - ✅ Vérifier si un composant existe déjà
+   - ✅ Chercher dans `src/components/ui/`
+
+2. **Si un composant existe** :
+   - ✅ UTILISER le composant existant
+   - ✅ Personnaliser avec `className` si besoin
+   - ✅ Utiliser les props disponibles
+
+3. **Si aucun composant n'existe** :
+   - ✅ DEMANDER à l'utilisateur AVANT de créer
+   - ✅ Expliquer pourquoi le composant existant ne convient pas
+   - ✅ Proposer d'utiliser un composant existant avec personnalisation
+
+---
+
+## 📋 Checklist OBLIGATOIRE
+
+Avant d'écrire du code, TOUJOURS vérifier :
+
+- [ ] J'ai consulté `ui_components_reference.mdc` ?
+- [ ] J'ai cherché dans `src/components/ui/` ?
+- [ ] Un composant similaire existe-t-il déjà ?
+- [ ] Puis-je utiliser un composant existant avec `className` ?
+- [ ] Ai-je demandé avant de créer un nouveau composant ?
+
+---
+
+## 🎯 Exemples de Remplacement
+
+### Bouton
+```typescript
+// ❌ AVANT
+<button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+  Submit
+</button>
+
+// ✅ APRÈS
+import { Button } from "~/components/ui/button"
+<Button variant="default">Submit</Button>
+```
+
+### Input
+```typescript
+// ❌ AVANT
+<input 
+  type="text" 
+  className="border rounded px-3 py-2"
+  value={value}
+  onChange={onChange}
+/>
+
+// ✅ APRÈS
+import { Input } from "~/components/ui/input"
+<Input value={value} onChange={onChange} />
+```
+
+### Card
+```typescript
+// ❌ AVANT
+<div className="border rounded-lg p-6 shadow">
+  <h2>Title</h2>
+  <p>Content</p>
+</div>
+
+// ✅ APRÈS
+import { MagicCard } from "~/components/ui/magic-card"
+<MagicCard>
+  <h2>Title</h2>
+  <p>Content</p>
+</MagicCard>
+```
+
+### Texte Animé
+```typescript
+// ❌ AVANT
+<h1 className="bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+  Animated Text
+</h1>
+
+// ✅ APRÈS
+import { AnimatedGradientText } from "~/components/ui/animated-gradient-text"
+<AnimatedGradientText>Animated Text</AnimatedGradientText>
+```
+
+### Background Pattern
+```typescript
+// ❌ AVANT
+<div className="relative">
+  <div className="absolute inset-0 bg-grid-pattern opacity-20" />
+  Content
+</div>
+
+// ✅ APRÈS
+import { GridPattern } from "~/components/ui/grid-pattern"
+<div className="relative">
+  <GridPattern />
+  Content
+</div>
+```
+
+---
+
+## 🔍 Recherche de Composants
+
+### Par Fonctionnalité
+
+**Bouton** → `Button`, `RainbowButton`, `ShimmerButton`, `ShinyButton`, `RippleButton`
+
+**Input/Form** → `Input` (chercher aussi dans shadcn/ui standard)
+
+**Card** → `MagicCard`, `NeonGradientCard`
+
+**Texte Animé** → `AnimatedGradientText`, `AnimatedShinyText`, `AuroraText`, `MorphingText`, `TypingAnimation`, etc.
+
+**Background** → `AnimatedGridPattern`, `WarpBackground`, `Particles`, `Meteors`, `DotPattern`, `GridPattern`, etc.
+
+**Layout** → `Marquee`, `BentoGrid`, `Dock`
+
+**Effets** → `AnimatedBeam`, `Confetti`, `LightRays`, `Ripple`
+
+**Voir** : `ui_components_reference.mdc` pour la liste complète
+
+---
+
+## 🚫 Règles Strictes
+
+1. **ZÉRO HTML brut** pour les éléments UI (button, input, div stylisés, etc.)
+2. **ZÉRO réinvention** de composants qui existent déjà
+3. **TOUJOURS consulter** `ui_components_reference.mdc` avant de créer
+4. **TOUJOURS demander** avant de créer un nouveau composant
+5. **TOUJOURS utiliser** les composants existants avec personnalisation si besoin
+
+---
+
+## 💡 Personnalisation des Composants Existants
+
+Si un composant existe mais ne correspond pas exactement :
+
+```typescript
+// ✅ Personnaliser avec className
+import { Button } from "~/components/ui/button"
+
+<Button className="custom-class">Custom Button</Button>
+
+// ✅ Utiliser les variants disponibles
+<Button variant="outline" size="lg">Large Outline</Button>
+
+// ✅ Composer plusieurs composants
+import { MagicCard } from "~/components/ui/magic-card"
+import { AnimatedGradientText } from "~/components/ui/animated-gradient-text"
+
+<MagicCard>
+  <AnimatedGradientText>Title</AnimatedGradientText>
+</MagicCard>
+```
+
+---
+
+## ⚠️ Exception UNIQUE
+
+**SEULE exception** : Si après avoir consulté `ui_components_reference.mdc` et `src/components/ui/`, aucun composant n'existe ET que l'utilisateur a explicitement demandé de créer un nouveau composant.
+
+Dans ce cas :
+1. Créer le composant dans `src/components/ui/`
+2. Suivre les patterns des composants existants
+3. Documenter dans `ui_components_reference.mdc`
+
+---
+
+**RÈGLE D'OR** : Si vous pensez créer quelque chose, c'est qu'un composant existe déjà. Cherchez d'abord, utilisez ensuite, créez jamais (sauf demande explicite).

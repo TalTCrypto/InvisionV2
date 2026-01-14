@@ -1,0 +1,423 @@
+---
+description: "Référence complète des composants UI disponibles - Organisés par catégories pour faciliter la recherche et l'utilisation par l'IA."
+globs:
+  - "src/components/ui/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Référence des Composants UI
+
+## 🚨 RÈGLE ABSOLUE
+
+> **⚠️ OBLIGATOIRE** : Ces composants DOIVENT être utilisés. Consultez `components_usage_policy.mdc` pour les règles strictes.
+> 
+> **INTERDICTIONS** :
+> - ❌ JAMAIS de HTML brut (button, input, div stylisés)
+> - ❌ JAMAIS de réinvention de composants
+> - ❌ JAMAIS de création sans vérifier cette liste d'abord
+> 
+> **OBLIGATOIRE** :
+> - ✅ TOUJOURS utiliser un composant de cette liste
+> - ✅ TOUJOURS chercher ici avant de créer quoi que ce soit
+> - ✅ TOUJOURS demander avant de créer un nouveau composant
+
+## 📋 Organisation par Catégories
+
+Cette référence organise tous les composants UI disponibles par catégories fonctionnelles pour faciliter leur découverte et utilisation.
+
+**60+ composants de haute qualité disponibles** - Utilisez-les TOUJOURS avant de créer quoi que ce soit.
+
+---
+
+## 🎯 1. COMPOSANTS DE BASE (Essentiels)
+
+### Button
+**Fichier**: `button.tsx`  
+**Usage**: Bouton standard avec variants  
+**Import**: `import { Button } from "~/components/ui/button"`  
+**Variants**: `default`, `destructive`, `outline`, `secondary`, `ghost`, `link`  
+**Sizes**: `default`, `sm`, `lg`, `icon`, `icon-sm`, `icon-lg`  
+**Cas d'usage**: Actions principales, formulaires, navigation
+
+---
+
+## 🎨 2. ANIMATIONS DE TEXTE
+
+### AnimatedGradientText
+**Fichier**: `animated-gradient-text.tsx`  
+**Usage**: Texte avec gradient animé  
+**Props**: `speed`, `colorFrom`, `colorTo`  
+**Cas d'usage**: Titres hero, textes accrocheurs
+
+### AnimatedShinyText
+**Fichier**: `animated-shiny-text.tsx`  
+**Usage**: Texte avec effet shiny animé  
+**Cas d'usage**: Highlights, call-to-action
+
+### AuroraText
+**Fichier**: `aurora-text.tsx`  
+**Usage**: Texte avec effet aurora  
+**Cas d'usage**: Titres premium, effets visuels
+
+### HyperText
+**Fichier**: `hyper-text.tsx`  
+**Usage**: Texte avec effet hyper  
+**Cas d'usage**: Textes interactifs
+
+### LineShadowText
+**Fichier**: `line-shadow-text.tsx`  
+**Usage**: Texte avec ombre de ligne animée  
+**Cas d'usage**: Titres stylisés
+
+### MorphingText
+**Fichier**: `morphing-text.tsx`  
+**Usage**: Texte qui se transforme  
+**Cas d'usage**: Animations de texte dynamiques
+
+### NumberTicker
+**Fichier**: `number-ticker.tsx`  
+**Usage**: Compteur animé de nombres  
+**Cas d'usage**: Statistiques, métriques
+
+### ScrollBasedVelocity
+**Fichier**: `scroll-based-velocity.tsx`  
+**Usage**: Texte animé basé sur le scroll  
+**Cas d'usage**: Effets parallaxe
+
+### SparklesText
+**Fichier**: `sparkles-text.tsx`  
+**Usage**: Texte avec particules sparkles  
+**Cas d'usage**: Effets magiques
+
+### SpinningText
+**Fichier**: `spinning-text.tsx`  
+**Usage**: Texte qui tourne  
+**Cas d'usage**: Animations circulaires
+
+### TextAnimate
+**Fichier**: `text-animate.tsx`  
+**Usage**: Animation de texte générique  
+**Cas d'usage**: Animations personnalisées
+
+### TextReveal
+**Fichier**: `text-reveal.tsx`  
+**Usage**: Révélation progressive du texte  
+**Cas d'usage**: Apparitions au scroll
+
+### TypingAnimation
+**Fichier**: `typing-animation.tsx`  
+**Usage**: Effet de frappe au clavier  
+**Cas d'usage**: Terminals, code editors
+
+### VideoText
+**Fichier**: `video-text.tsx`  
+**Usage**: Texte avec vidéo en arrière-plan  
+**Cas d'usage**: Hero sections
+
+### WordRotate
+**Fichier**: `word-rotate.tsx`  
+**Usage**: Rotation de mots  
+**Cas d'usage**: Textes alternatifs
+
+---
+
+## ✨ 3. EFFETS VISUELS & PARTICULES
+
+### AnimatedBeam
+**Fichier**: `animated-beam.tsx`  
+**Usage**: Rayons animés entre éléments  
+**Cas d'usage**: Connexions visuelles, réseaux
+
+### Confetti
+**Fichier**: `confetti.tsx`  
+**Usage**: Confettis animés  
+**Cas d'usage**: Célébrations, succès
+
+### LightRays
+**Fichier**: `light-rays.tsx`  
+**Usage**: Rayons de lumière  
+**Cas d'usage**: Effets lumineux
+
+### Meteors
+**Fichier**: `meteors.tsx`  
+**Usage**: Météores animés  
+**Cas d'usage**: Backgrounds dynamiques
+
+### Particles
+**Fichier**: `particles.tsx`  
+**Usage**: Système de particules  
+**Cas d'usage**: Backgrounds interactifs
+
+### Ripple
+**Fichier**: `ripple.tsx`  
+**Usage**: Ondes de propagation  
+**Cas d'usage**: Effets de clic, interactions
+
+---
+
+## 🎴 4. CARDS & CONTAINERS
+
+### MagicCard
+**Fichier**: `magic-card.tsx`  
+**Usage**: Carte avec effet magique au hover  
+**Props**: `gradientSize`, `gradientColor`, `gradientOpacity`, `gradientFrom`, `gradientTo`  
+**Cas d'usage**: Cards premium, hover effects
+
+### NeonGradientCard
+**Fichier**: `neon-gradient-card.tsx`  
+**Usage**: Carte avec gradient néon  
+**Cas d'usage**: Cards futuristes
+
+### BentoGrid
+**Fichier**: `bento-grid.tsx`  
+**Usage**: Grille de type Bento  
+**Cas d'usage**: Layouts asymétriques, dashboards
+
+---
+
+## 🎭 5. BOUTONS SPÉCIAUX
+
+### RainbowButton
+**Fichier**: `rainbow-button.tsx`  
+**Usage**: Bouton arc-en-ciel  
+**Cas d'usage**: Actions spéciales, premium
+
+### RippleButton
+**Fichier**: `ripple-button.tsx`  
+**Usage**: Bouton avec effet ripple  
+**Cas d'usage**: Interactions tactiles
+
+### ShimmerButton
+**Fichier**: `shimmer-button.tsx`  
+**Usage**: Bouton avec effet shimmer  
+**Cas d'usage**: Call-to-action premium
+
+### ShinyButton
+**Fichier**: `shiny-button.tsx`  
+**Usage**: Bouton brillant  
+**Cas d'usage**: Actions importantes
+
+---
+
+## 🖼️ 6. BACKGROUNDS & PATTERNS
+
+### AnimatedGridPattern
+**Fichier**: `animated-grid-pattern.tsx`  
+**Usage**: Grille animée en arrière-plan  
+**Cas d'usage**: Backgrounds dynamiques
+
+### BorderBeam
+**Fichier**: `border-beam.tsx`  
+**Usage**: Bordure avec effet beam  
+**Cas d'usage**: Containers stylisés
+
+### DotPattern
+**Fichier**: `dot-pattern.tsx`  
+**Usage**: Motif de points  
+**Cas d'usage**: Backgrounds subtils
+
+### FlickeringGrid
+**Fichier**: `flickering-grid.tsx`  
+**Usage**: Grille qui scintille  
+**Cas d'usage**: Effets rétro
+
+### GridPattern
+**Fichier**: `grid-pattern.tsx`  
+**Usage**: Motif de grille statique  
+**Cas d'usage**: Backgrounds structurés
+
+### InteractiveGridPattern
+**Fichier**: `interactive-grid-pattern.tsx`  
+**Usage**: Grille interactive  
+**Cas d'usage**: Backgrounds réactifs
+
+### RetroGrid
+**Fichier**: `retro-grid.tsx`  
+**Usage**: Grille style rétro  
+**Cas d'usage**: Thèmes vintage
+
+### ShineBorder
+**Fichier**: `shine-border.tsx`  
+**Usage**: Bordure brillante  
+**Cas d'usage**: Containers premium
+
+### WarpBackground
+**Fichier**: `warp-background.tsx`  
+**Usage**: Background déformé  
+**Cas d'usage**: Effets space
+
+---
+
+## 📐 7. LAYOUTS & STRUCTURE
+
+### Marquee
+**Fichier**: `marquee.tsx`  
+**Usage**: Défilement horizontal/vertical  
+**Props**: `reverse`, `pauseOnHover`, `vertical`, `repeat`  
+**Cas d'usage**: Bandeaux, logos, testimonials
+
+### Dock
+**Fichier**: `dock.tsx`  
+**Usage**: Dock macOS style  
+**Cas d'usage**: Navigation, shortcuts
+
+### OrbitingCircles
+**Fichier**: `orbiting-circles.tsx`  
+**Usage**: Cercles en orbite  
+**Cas d'usage**: Animations circulaires
+
+### AvatarCircles
+**Fichier**: `avatar-circles.tsx`  
+**Usage**: Cercles d'avatars  
+**Cas d'usage**: Teams, utilisateurs
+
+---
+
+## 🎬 8. UI AVANCÉE
+
+### BlurFade
+**Fichier**: `blur-fade.tsx`  
+**Usage**: Apparition avec blur  
+**Cas d'usage**: Transitions, reveals
+
+### ProgressiveBlur
+**Fichier**: `progressive-blur.tsx`  
+**Usage**: Blur progressif  
+**Cas d'usage**: Focus effects
+
+### Lens
+**Fichier**: `lens.tsx`  
+**Usage**: Effet loupe  
+**Cas d'usage**: Zoom, focus
+
+### Pointer
+**Fichier**: `pointer.tsx`  
+**Usage**: Curseur personnalisé  
+**Cas d'usage**: Interactions uniques
+
+### SmoothCursor
+**Fichier**: `smooth-cursor.tsx`  
+**Usage**: Curseur fluide  
+**Cas d'usage**: UX premium
+
+### Terminal
+**Fichier**: `terminal.tsx`  
+**Usage**: Terminal style  
+**Cas d'usage**: Code demos, CLI
+
+### CodeComparison
+**Fichier**: `code-comparison.tsx`  
+**Usage**: Comparaison de code  
+**Cas d'usage**: Diff views, before/after
+
+### FileTree
+**Fichier**: `file-tree.tsx`  
+**Usage**: Arborescence de fichiers  
+**Cas d'usage**: Explorateurs, projets
+
+### HeroVideoDialog
+**Fichier**: `hero-video-dialog.tsx`  
+**Usage**: Dialog avec vidéo hero  
+**Cas d'usage**: Modals vidéo
+
+### TweetCard
+**Fichier**: `tweet-card.tsx`  
+**Usage**: Carte Twitter style  
+**Cas d'usage**: Social proof, testimonials
+
+### Globe
+**Fichier**: `globe.tsx`  
+**Usage**: Globe 3D interactif  
+**Cas d'usage**: Localisation, global
+
+### DottedMap
+**Fichier**: `dotted-map.tsx`  
+**Usage**: Carte avec points  
+**Cas d'usage**: Localisation, analytics
+
+### IconCloud
+**Fichier**: `icon-cloud.tsx`  
+**Usage**: Nuage d'icônes  
+**Cas d'usage**: Technologies, skills
+
+### Highlighter
+**Fichier**: `highlighter.tsx`  
+**Usage**: Surligneur animé  
+**Cas d'usage**: Highlights, emphasis
+
+---
+
+## 📱 9. DEVICE MOCKS
+
+### iPhone
+**Fichier**: `iphone.tsx`  
+**Usage**: Mock iPhone  
+**Cas d'usage**: Screenshots, demos
+
+### Android
+**Fichier**: `android.tsx`  
+**Usage**: Mock Android  
+**Cas d'usage**: Screenshots, demos
+
+### Safari
+**Fichier**: `safari.tsx`  
+**Usage**: Mock Safari browser  
+**Cas d'usage**: Browser demos
+
+---
+
+## 📊 10. PROGRESS & INDICATORS
+
+### AnimatedCircularProgressBar
+**Fichier**: `animated-circular-progress-bar.tsx`  
+**Usage**: Barre de progression circulaire animée  
+**Cas d'usage**: Stats, progress, loading
+
+---
+
+## 🎛️ 11. THEME & TOGGLES
+
+### AnimatedThemeToggler
+**Fichier**: `animated-theme-toggler.tsx`  
+**Usage**: Toggle de thème animé  
+**Cas d'usage**: Dark/Light mode
+
+---
+
+## 📖 Guide d'Utilisation Rapide
+
+### Pour choisir un composant :
+
+1. **Bouton standard** → `Button`
+2. **Texte animé** → Voir section "Animations de Texte"
+3. **Effet visuel** → Voir section "Effets Visuels"
+4. **Card stylisée** → `MagicCard`, `NeonGradientCard`
+5. **Background** → Voir section "Backgrounds & Patterns"
+6. **Layout** → `Marquee`, `BentoGrid`, `Dock`
+7. **Device mock** → `iPhone`, `Android`, `Safari`
+8. **Bouton spécial** → Voir section "Boutons Spéciaux"
+
+### Pattern d'import standard :
+```typescript
+import { ComponentName } from "~/components/ui/component-name"
+```
+
+### Tous les composants :
+- Supportent `className` pour personnalisation
+- Sont compatibles avec Tailwind CSS
+- Utilisent `cn()` pour merge des classes
+- Sont TypeScript typés
+
+---
+
+## 🎯 Règles d'Utilisation
+
+1. **Toujours importer depuis** `~/components/ui/`
+2. **Utiliser les props TypeScript** pour autocomplétion
+3. **Personnaliser avec `className`** si besoin
+4. **Respecter les cas d'usage** indiqués
+5. **Composer plusieurs composants** pour des effets complexes
+
+---
+
+**Note** : Cette référence est organisée pour faciliter la recherche. Si vous cherchez un effet spécifique, consultez la catégorie correspondante.

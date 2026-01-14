@@ -1,0 +1,552 @@
+---
+description: "Guide complet pour le développement backend T3 : tRPC, Prisma, Better Auth et bonnes pratiques."
+globs:
+  - "src/server/**/*.{ts,tsx}"
+  - "src/server/api/**/*.{ts,tsx}"
+  - "prisma/**/*"
+alwaysApply: false
+---
+
+# Guide Backend T3 Stack
+
+## Stack Technique
+
+- **API** : tRPC (type-safe API)
+- **ORM** : Prisma + PostgreSQL
+- **Auth** : Better Auth (sessions + OAuth)
+- **Validation** : Zod
+- **Framework** : Next.js 15+ App Router
+
+---
+
+## 1. Prisma - Configuration
+
+### Schéma Prisma
+```prisma
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Models métier
+model Post {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  createdById String
+
+  @@index([name])
+}
+
+// Models Better Auth
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  posts         Post[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime  @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+```
+
+### Client Prisma
+```typescript
+// src/server/db.ts
+import { env } from "~/env";
+import { PrismaClient } from "../../generated/prisma";
+
+const createPrismaClient = () =>
+  new PrismaClient({
+    log:
+      env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+  });
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: ReturnType<typeof createPrismaClient> | undefined;
+};
+
+export const db = globalForPrisma.prisma ?? createPrismaClient();
+
+if (env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+```
+
+### Migrations
+```bash
+# Créer une migration
+npm run db:generate
+npx prisma migrate dev --name init
+
+# Appliquer les migrations en production
+npx prisma migrate deploy
+
+# Ouvrir Prisma Studio
+npm run db:studio
+```
+
+---
+
+## 2. tRPC - Routers et Procedures
+
+### Structure tRPC
+```typescript
+// src/server/api/trpc.ts
+import { initTRPC, TRPCError } from "@trpc/server";
+import superjson from "superjson";
+import { ZodError } from "zod";
+import { auth } from "~/server/better-auth";
+import { db } from "~/server/db";
+
+export const createTRPCContext = async (opts: { headers: Headers }) => {
+  const session = await auth.api.getSession({
+    headers: opts.headers,
+  });
+  return {
+    db,
+    session,
+    ...opts,
+  };
+};
+
+const t = initTRPC.context<typeof createTRPCContext>().create({
+  transformer: superjson,
+  errorFormatter({ shape, error }) {
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        zodError:
+          error.cause instanceof ZodError ? error.cause.flatten() : null,
+      },
+    };
+  },
+});
+
+export const createTRPCRouter = t.router;
+export const publicProcedure = t.procedure;
+
+export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
+  if (!ctx.session?.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  return next({
+    ctx: {
+      session: { ...ctx.session, user: ctx.session.user },
+    },
+  });
+});
+```
+
+### Router Exemple
+```typescript
+// src/server/api/routers/post.ts
+import { z } from "zod";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
+
+export const postRouter = createTRPCRouter({
+  // Query publique
+  hello: publicProcedure
+    .input(z.object({ text: z.string() }))
+    .query(({ input }) => {
+      return {
+        greeting: `Hello ${input.text}`,
+      };
+    }),
+
+  // Mutation protégée
+  create: protectedProcedure
+    .input(z.object({ name: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.post.create({
+        data: {
+          name: input.name,
+          createdBy: { connect: { id: ctx.session.user.id } },
+        },
+      });
+    }),
+
+  // Query protégée
+  getLatest: protectedProcedure.query(async ({ ctx }) => {
+    const post = await ctx.db.post.findFirst({
+      orderBy: { createdAt: "desc" },
+      where: { createdBy: { id: ctx.session.user.id } },
+    });
+
+    return post ?? null;
+  }),
+
+  // Query avec pagination
+  getAll: protectedProcedure
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        pageSize: z.number().min(1).max(100).default(20),
+        search: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const where = {
+        createdById: ctx.session.user.id,
+        ...(input.search && {
+          name: { contains: input.search, mode: "insensitive" as const },
+        }),
+      };
+
+      const [posts, total] = await Promise.all([
+        ctx.db.post.findMany({
+          where,
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          orderBy: { createdAt: "desc" },
+        }),
+        ctx.db.post.count({ where }),
+      ]);
+
+      return {
+        posts,
+        pagination: {
+          page: input.page,
+          pageSize: input.pageSize,
+          total,
+          totalPages: Math.ceil(total / input.pageSize),
+        },
+      };
+    }),
+
+  // Mutation avec validation complexe
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).max(100).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Vérifier que le post appartient à l'utilisateur
+      const post = await ctx.db.post.findFirst({
+        where: {
+          id: input.id,
+          createdById: ctx.session.user.id,
+        },
+      });
+
+      if (!post) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Post not found",
+        });
+      }
+
+      return ctx.db.post.update({
+        where: { id: input.id },
+        data: {
+          ...(input.name && { name: input.name }),
+        },
+      });
+    }),
+
+  // Mutation de suppression
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const post = await ctx.db.post.findFirst({
+        where: {
+          id: input.id,
+          createdById: ctx.session.user.id,
+        },
+      });
+
+      if (!post) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Post not found",
+        });
+      }
+
+      await ctx.db.post.delete({
+        where: { id: input.id },
+      });
+
+      return { success: true };
+    }),
+});
+```
+
+### Root Router
+```typescript
+// src/server/api/root.ts
+import { postRouter } from "~/server/api/routers/post";
+import { createTRPCRouter } from "~/server/api/trpc";
+
+export const appRouter = createTRPCRouter({
+  post: postRouter,
+});
+
+export type AppRouter = typeof appRouter;
+```
+
+---
+
+## 3. Better Auth Configuration
+
+### Configuration
+```typescript
+// src/server/better-auth/config.ts
+import { betterAuth } from "better-auth";
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import { env } from "~/env";
+import { db } from "~/server/db";
+
+export const auth = betterAuth({
+  database: prismaAdapter(db, {
+    provider: "postgresql",
+  }),
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: true,
+    minPasswordLength: 8,
+  },
+  socialProviders: {
+    github: {
+      clientId: env.BETTER_AUTH_GITHUB_CLIENT_ID,
+      clientSecret: env.BETTER_AUTH_GITHUB_CLIENT_SECRET,
+      redirectURI: "http://localhost:3000/api/auth/callback/github",
+    },
+  },
+});
+
+export type Session = typeof auth.$Infer.Session;
+```
+
+### API Route Auth
+```typescript
+// src/app/api/auth/[...all]/route.ts
+import { auth } from "~/server/better-auth";
+import { toNextJsHandler } from "better-auth/next-js";
+
+export const { GET, POST } = toNextJsHandler(auth.handler);
+```
+
+---
+
+## 4. Validation Env Vars
+
+### Configuration avec @t3-oss/env-nextjs
+```typescript
+// src/env.js
+import { createEnv } from "@t3-oss/env-nextjs";
+import { z } from "zod";
+
+export const env = createEnv({
+  server: {
+    BETTER_AUTH_SECRET:
+      process.env.NODE_ENV === "production"
+        ? z.string()
+        : z.string().optional(),
+    BETTER_AUTH_GITHUB_CLIENT_ID: z.string(),
+    BETTER_AUTH_GITHUB_CLIENT_SECRET: z.string(),
+    DATABASE_URL: z.string().url(),
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
+  client: {
+    // NEXT_PUBLIC_CLIENTVAR: z.string(),
+  },
+  runtimeEnv: {
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BETTER_AUTH_GITHUB_CLIENT_ID: process.env.BETTER_AUTH_GITHUB_CLIENT_ID,
+    BETTER_AUTH_GITHUB_CLIENT_SECRET:
+      process.env.BETTER_AUTH_GITHUB_CLIENT_SECRET,
+    DATABASE_URL: process.env.DATABASE_URL,
+    NODE_ENV: process.env.NODE_ENV,
+  },
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+  emptyStringAsUndefined: true,
+});
+```
+
+---
+
+## 5. Middleware et Middleware tRPC
+
+### Middleware tRPC personnalisé
+```typescript
+// src/server/api/trpc.ts
+const timingMiddleware = t.middleware(async ({ next, path }) => {
+  const start = Date.now();
+
+  if (t._config.isDev) {
+    // Délai artificiel en dev
+    const waitMs = Math.floor(Math.random() * 400) + 100;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+
+  const result = await next();
+
+  const end = Date.now();
+  console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
+
+  return result;
+});
+
+export const publicProcedure = t.procedure.use(timingMiddleware);
+
+export const protectedProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(({ ctx, next }) => {
+    if (!ctx.session?.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    return next({
+      ctx: {
+        session: { ...ctx.session, user: ctx.session.user },
+      },
+    });
+  });
+```
+
+---
+
+## 6. Transactions Prisma
+
+### Utilisation dans tRPC
+```typescript
+// src/server/api/routers/post.ts
+export const postRouter = createTRPCRouter({
+  bulkCreate: protectedProcedure
+    .input(
+      z.object({
+        posts: z.array(z.object({ name: z.string().min(1) })),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.$transaction(async (tx) => {
+        // Vérifier les limites
+        const currentCount = await tx.post.count({
+          where: { createdById: ctx.session.user.id },
+        });
+
+        if (currentCount + input.posts.length > 1000) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Limite d'items atteinte",
+          });
+        }
+
+        // Créer les posts
+        const createdPosts = await Promise.all(
+          input.posts.map((post) =>
+            tx.post.create({
+              data: {
+                name: post.name,
+                createdById: ctx.session.user.id,
+              },
+            })
+          )
+        );
+
+        return createdPosts;
+      });
+    }),
+});
+```
+
+---
+
+## 7. Checklist Backend
+
+### Prisma
+- [ ] Schema généré avec Better Auth
+- [ ] Models métier ajoutés
+- [ ] Pattern singleton implémenté
+- [ ] Migrations créées
+- [ ] Indexes optimisés
+- [ ] Types générés
+
+### tRPC
+- [ ] Routers créés par domaine
+- [ ] Procedures publiques vs protégées
+- [ ] Validation Zod sur inputs
+- [ ] Error handling avec TRPCError
+- [ ] Types exportés (AppRouter)
+
+### Auth (Better Auth)
+- [ ] Better Auth configuré
+- [ ] Sessions (cookies)
+- [ ] OAuth providers configurés
+- [ ] API route créée
+
+### Sécurité
+- [ ] Input sanitization (Zod)
+- [ ] SQL injection prévention (Prisma)
+- [ ] Env vars validées (@t3-oss/env-nextjs)
+- [ ] Auth checks sur procedures protégées
+
+---
+
+**Règle d'or** : Utiliser tRPC pour toutes les opérations API. Procedures publiques pour données publiques, procedures protégées pour données utilisateur. Toujours valider les inputs avec Zod.
