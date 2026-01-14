@@ -39,7 +39,9 @@ export default function SignInPage() {
         setError(result.error.message ?? "Erreur de connexion");
       } else {
         // Attendre que le statut d'onboarding soit chargé, sinon rediriger vers onboarding par défaut
-        const redirectTo = onboardingStatus?.completed ? "/dashboard" : "/onboarding";
+        const redirectTo = onboardingStatus?.completed
+          ? "/dashboard"
+          : "/onboarding";
         router.push(redirectTo);
         router.refresh();
       }
