@@ -58,8 +58,7 @@ export default function AdminWorkflowsPage() {
     api.admin.listWorkflows.useQuery();
   const { data: organizations, isLoading: isLoadingOrgs } =
     api.admin.listOrganizations.useQuery();
-  const { data: availableIntegrations } =
-    api.integrations.list.useQuery();
+  const { data: availableIntegrations } = api.integrations.list.useQuery();
 
   // Mutations
   const createWorkflow = api.admin.createWorkflow.useMutation({
@@ -113,14 +112,14 @@ export default function AdminWorkflowsPage() {
                 Créer un workflow
               </Button>
             </DialogTrigger>
-        <CreateWorkflowDialog
-          organizations={organizations ?? []}
-          availableIntegrations={availableIntegrations}
-          onCreate={(data) => {
-            createWorkflow.mutate(data);
-          }}
-          isLoading={createWorkflow.isPending}
-        />
+            <CreateWorkflowDialog
+              organizations={organizations ?? []}
+              availableIntegrations={availableIntegrations}
+              onCreate={(data) => {
+                createWorkflow.mutate(data);
+              }}
+              isLoading={createWorkflow.isPending}
+            />
           </Dialog>
         </div>
 
@@ -670,8 +669,10 @@ function CreateWorkflowDialog({
 
             <div className="space-y-2">
               <Label>Intégrations requises</Label>
-              <p className="text-muted-foreground text-xs mb-2">
-                Sélectionnez les intégrations nécessaires pour exécuter ce workflow. Les utilisateurs devront les connecter avant de pouvoir utiliser ce workflow.
+              <p className="text-muted-foreground mb-2 text-xs">
+                Sélectionnez les intégrations nécessaires pour exécuter ce
+                workflow. Les utilisateurs devront les connecter avant de
+                pouvoir utiliser ce workflow.
               </p>
               {availableIntegrations && availableIntegrations.length > 0 ? (
                 <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3">
@@ -732,8 +733,8 @@ function CreateWorkflowDialog({
                 className="border-border size-4 rounded"
               />
               <Label htmlFor="restrictAccess" className="cursor-pointer">
-                Restreindre l{"'"}accès (par défaut, accessible à toute
-                l{"'"}organisation)
+                Restreindre l{"'"}accès (par défaut, accessible à toute l{"'"}
+                organisation)
               </Label>
             </div>
           </div>
@@ -1274,8 +1275,10 @@ function EditWorkflowDialog({
 
               <div className="space-y-2">
                 <Label>Intégrations requises</Label>
-                <p className="text-muted-foreground text-xs mb-2">
-                  Sélectionnez les intégrations nécessaires pour exécuter ce workflow. Les utilisateurs devront les connecter avant de pouvoir utiliser ce workflow.
+                <p className="text-muted-foreground mb-2 text-xs">
+                  Sélectionnez les intégrations nécessaires pour exécuter ce
+                  workflow. Les utilisateurs devront les connecter avant de
+                  pouvoir utiliser ce workflow.
                 </p>
                 {availableIntegrations && availableIntegrations.length > 0 ? (
                   <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3">
@@ -1337,8 +1340,8 @@ function EditWorkflowDialog({
                   }
                 />
                 <Label htmlFor="edit-restrictAccess" className="cursor-pointer">
-                  Restreindre l{"'"}accès (par défaut, accessible à toute
-                  l{"'"}organisation)
+                  Restreindre l{"'"}accès (par défaut, accessible à toute l{"'"}
+                  organisation)
                 </Label>
               </div>
             </div>

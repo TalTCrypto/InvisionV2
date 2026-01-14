@@ -49,15 +49,22 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // Messages locaux pour l'affichage optimiste
-  const [localMessages, setLocalMessages] = useState<Array<{
-    role: "user" | "assistant";
-    content: string;
-    timestamp: string;
-  }>>([]);
-  
+  const [localMessages, setLocalMessages] = useState<
+    Array<{
+      role: "user" | "assistant";
+      content: string;
+      timestamp: string;
+    }>
+  >([]);
+
   const [streamingData, setStreamingData] = useState<{
     reasoning: Array<{ type: string; content: string }>;
-    tools: Array<{ name: string; input: Record<string, unknown> | null; output: unknown; duration?: number }>;
+    tools: Array<{
+      name: string;
+      input: Record<string, unknown> | null;
+      output: unknown;
+      duration?: number;
+    }>;
     currentText: string;
     isStreaming: boolean;
   }>({
@@ -73,7 +80,7 @@ export default function ChatPage() {
   // Récupérer les intégrations connectées de l'utilisateur
   const { data: connectedIntegrations } =
     api.integrations.getConnected.useQuery();
-  
+
   // Récupérer la liste des intégrations disponibles pour obtenir les noms
   const { data: availableIntegrations } = api.integrations.list.useQuery();
 
@@ -147,14 +154,14 @@ export default function ChatPage() {
   // Important : ne pas perdre les messages locaux même si la session est en cours de rechargement
   const displayMessages = useMemo(() => {
     const sessionMessages = currentSession?.messages ?? [];
-    
+
     // Si on a des messages locaux, les combiner intelligemment avec les messages de la session
     if (localMessages.length > 0) {
       // Si la session est vide ou en cours de chargement, utiliser uniquement les messages locaux
       if (sessionMessages.length === 0 || isLoadingSession) {
         return localMessages;
       }
-      
+
       // Créer un Set pour identifier rapidement les messages de session
       // On utilise le contenu complet et le rôle pour une identification précise
       const sessionMessageSet = new Set<string>();
@@ -162,13 +169,13 @@ export default function ChatPage() {
         const key = `${msg.role}-${msg.content}`;
         sessionMessageSet.add(key);
       }
-      
+
       // Ajouter les messages locaux qui ne sont pas déjà dans la session
       const uniqueLocalMessages = localMessages.filter((localMsg) => {
         const key = `${localMsg.role}-${localMsg.content}`;
         return !sessionMessageSet.has(key);
       });
-      
+
       // Combiner tous les messages et trier par timestamp pour préserver l'ordre chronologique
       const allMessages = [...sessionMessages, ...uniqueLocalMessages];
       return allMessages.sort((a, b) => {
@@ -177,7 +184,7 @@ export default function ChatPage() {
         return timeA - timeB;
       });
     }
-    
+
     return sessionMessages;
   }, [currentSession?.messages, localMessages, isLoadingSession]);
 
@@ -185,30 +192,34 @@ export default function ChatPage() {
   // Mais seulement si la session a au moins autant de messages que les messages locaux
   useEffect(() => {
     if (localMessages.length === 0 || !currentSession?.messages) return;
-    
+
     const sessionMessages = currentSession.messages;
-    
+
     // Si la session a moins de messages que les messages locaux, ne pas nettoyer
     // (la DB n'est peut-être pas encore à jour)
     if (sessionMessages.length < localMessages.length) {
       return;
     }
-    
+
     const sessionMessageMap = new Map<string, boolean>();
     for (const msg of sessionMessages) {
       const key = `${msg.role}-${msg.content}`;
       sessionMessageMap.set(key, true);
     }
-    
+
     // Vérifier si tous les messages locaux sont dans la session
     const allLocalInSession = localMessages.every((localMsg) => {
       const key = `${localMsg.role}-${localMsg.content}`;
       return sessionMessageMap.has(key);
     });
-    
+
     // Si tous les messages locaux sont dans la session ET que la session a au moins le même nombre de messages,
     // on peut les nettoyer après un délai pour être sûr
-    if (allLocalInSession && localMessages.length > 0 && sessionMessages.length >= localMessages.length) {
+    if (
+      allLocalInSession &&
+      localMessages.length > 0 &&
+      sessionMessages.length >= localMessages.length
+    ) {
       const timeoutId = setTimeout(() => {
         setLocalMessages([]);
       }, 2000); // Délai plus long pour être sûr que la DB est à jour
@@ -245,17 +256,24 @@ export default function ChatPage() {
       return;
     }
 
-    const workflowRequiredIntegrations = (activeWorkflow as { requiredIntegrations?: string[] | null })?.requiredIntegrations;
-    
-    if (workflowRequiredIntegrations && workflowRequiredIntegrations.length > 0) {
-      const normalizeSlug = (slug: string) => slug.toLowerCase().replace(/-/g, "");
-      
+    const workflowRequiredIntegrations = (
+      activeWorkflow as { requiredIntegrations?: string[] | null }
+    )?.requiredIntegrations;
+
+    if (
+      workflowRequiredIntegrations &&
+      workflowRequiredIntegrations.length > 0
+    ) {
+      const normalizeSlug = (slug: string) =>
+        slug.toLowerCase().replace(/-/g, "");
+
       const connectedSlugs = new Set(
-        (connectedIntegrations ?? []).map(normalizeSlug)
+        (connectedIntegrations ?? []).map(normalizeSlug),
       );
 
       const missingIntegrations = workflowRequiredIntegrations.filter(
-        (requiredSlug: string) => !connectedSlugs.has(normalizeSlug(requiredSlug))
+        (requiredSlug: string) =>
+          !connectedSlugs.has(normalizeSlug(requiredSlug)),
       );
 
       if (missingIntegrations.length > 0) {
@@ -263,10 +281,10 @@ export default function ChatPage() {
         const missingIntegrationNames = missingIntegrations.map(
           (slug: string) => {
             const integration = availableIntegrations?.find(
-              (int) => normalizeSlug(int.slug) === normalizeSlug(slug)
+              (int) => normalizeSlug(int.slug) === normalizeSlug(slug),
             );
             return integration?.name ?? slug;
-          }
+          },
         );
 
         // Afficher le dialog avec les intégrations manquantes
@@ -286,13 +304,13 @@ export default function ChatPage() {
       content: messageText,
       timestamp: new Date().toISOString(),
     };
-    
+
     // Ajouter le nouveau message utilisateur aux messages locaux existants
     // IMPORTANT : On garde TOUS les messages précédents pour éviter qu'ils disparaissent
     setLocalMessages((prev) => {
       // Vérifier si ce message n'existe pas déjà
       const exists = prev.some(
-        (m) => m.role === "user" && m.content === messageText
+        (m) => m.role === "user" && m.content === messageText,
       );
       if (exists) return prev;
       // Ajouter le nouveau message à la fin
@@ -311,11 +329,12 @@ export default function ChatPage() {
           if (error.data?.code === "PRECONDITION_FAILED") {
             // Extraire les intégrations manquantes du message d'erreur
             const errorMessage = error.message ?? "";
-            const missingIntegrationsMatch = /Les intégrations suivantes doivent être connectées : (.+)/.exec(
-              errorMessage,
-            );
+            const missingIntegrationsMatch =
+              /Les intégrations suivantes doivent être connectées : (.+)/.exec(
+                errorMessage,
+              );
             const missingIntegrations = missingIntegrationsMatch
-              ? missingIntegrationsMatch[1]?.split(", ") ?? []
+              ? (missingIntegrationsMatch[1]?.split(", ") ?? [])
               : [];
             alert(
               `Les intégrations suivantes doivent être connectées avant d'utiliser ce workflow :\n\n${missingIntegrations.join("\n")}\n\nVeuillez les connecter dans la page Intégrations.`,
@@ -387,27 +406,35 @@ export default function ChatPage() {
             if (line.startsWith("data: ")) {
               const dataStr = line.slice(6).trim();
               if (!dataStr) continue;
-              
+
               try {
                 const data = JSON.parse(dataStr) as Record<string, unknown>;
-                const eventType = currentEventType ?? (typeof data.type === "string" ? data.type : null) ?? "message";
-                
+                const eventType =
+                  currentEventType ??
+                  (typeof data.type === "string" ? data.type : null) ??
+                  "message";
+
                 // Debug: logger les événements importants (seulement pour les événements non-token ou tokens importants)
                 if (eventType !== "token") {
                   console.log(`[SSE] Event: ${eventType}`, data);
                 }
 
                 if (eventType === "token") {
-                  const fullText = typeof data.fullText === "string" ? data.fullText : undefined;
-                  const chunk = typeof data.chunk === "string" ? data.chunk : undefined;
+                  const fullText =
+                    typeof data.fullText === "string"
+                      ? data.fullText
+                      : undefined;
+                  const chunk =
+                    typeof data.chunk === "string" ? data.chunk : undefined;
                   if (fullText || chunk) {
                     setStreamingData((prev) => ({
                       ...prev,
-                      currentText: fullText ?? (prev.currentText + (chunk ?? "")),
+                      currentText: fullText ?? prev.currentText + (chunk ?? ""),
                     }));
                   }
                 } else if (eventType === "reasoning") {
-                  const content = typeof data.content === "string" ? data.content : "";
+                  const content =
+                    typeof data.content === "string" ? data.content : "";
                   if (content) {
                     setStreamingData((prev) => ({
                       ...prev,
@@ -419,7 +446,10 @@ export default function ChatPage() {
                   }
                 } else if (eventType === "tool") {
                   const name = typeof data.name === "string" ? data.name : "";
-                  const duration = typeof data.duration === "number" ? data.duration : undefined;
+                  const duration =
+                    typeof data.duration === "number"
+                      ? data.duration
+                      : undefined;
                   if (name) {
                     setStreamingData((prev) => ({
                       ...prev,
@@ -427,7 +457,12 @@ export default function ChatPage() {
                         ...prev.tools,
                         {
                           name,
-                          input: (data.input && typeof data.input === "object" && !Array.isArray(data.input)) ? data.input as Record<string, unknown> : null,
+                          input:
+                            data.input &&
+                            typeof data.input === "object" &&
+                            !Array.isArray(data.input)
+                              ? (data.input as Record<string, unknown>)
+                              : null,
                           output: data.output,
                           duration,
                         },
@@ -435,16 +470,22 @@ export default function ChatPage() {
                     }));
                   }
                 } else if (eventType === "message") {
-                  const complete = typeof data.complete === "boolean" ? data.complete : false;
-                  const text = typeof data.text === "string" ? data.text : undefined;
-                  
+                  const complete =
+                    typeof data.complete === "boolean" ? data.complete : false;
+                  const text =
+                    typeof data.text === "string" ? data.text : undefined;
+
                   if (text && complete) {
                     // Message final reçu, mettre à jour les messages locaux
                     setLocalMessages((prev) => {
                       // Garder le message utilisateur et ajouter/mettre à jour le message assistant
-                      const userMessages = prev.filter((m) => m.role === "user");
-                      const hasAssistant = prev.some((m) => m.role === "assistant");
-                      
+                      const userMessages = prev.filter(
+                        (m) => m.role === "user",
+                      );
+                      const hasAssistant = prev.some(
+                        (m) => m.role === "assistant",
+                      );
+
                       if (!hasAssistant) {
                         return [
                           ...userMessages,
@@ -458,14 +499,20 @@ export default function ChatPage() {
                       // Mettre à jour le contenu du message assistant et garder les messages utilisateur
                       return [
                         ...userMessages,
-                        ...prev.filter((m) => m.role === "assistant").map((m) => ({
-                          ...m,
-                          content: text,
-                        })),
+                        ...prev
+                          .filter((m) => m.role === "assistant")
+                          .map((m) => ({
+                            ...m,
+                            content: text,
+                          })),
                       ];
                     });
-                    setStreamingData((prev) => ({ ...prev, isStreaming: false, currentText: text }));
-                    
+                    setStreamingData((prev) => ({
+                      ...prev,
+                      isStreaming: false,
+                      currentText: text,
+                    }));
+
                     // Rafraîchir la session pour récupérer les messages de la DB
                     // On garde les messages locaux - ils seront automatiquement filtrés par displayMessages
                     // si ils sont déjà dans la session
@@ -473,13 +520,16 @@ export default function ChatPage() {
                       sessionId: selectedSessionId ?? "",
                     });
                     void utils.chat.getSessions.invalidate();
-                    
+
                     // NE PAS nettoyer localMessages automatiquement
                     // Ils seront filtrés par displayMessages si déjà présents dans la session
                     // On les nettoie seulement quand on envoie un nouveau message
                   } else if (text) {
                     // Mise à jour du texte en cours
-                    setStreamingData((prev) => ({ ...prev, currentText: text }));
+                    setStreamingData((prev) => ({
+                      ...prev,
+                      currentText: text,
+                    }));
                   }
                 } else if (eventType === "end") {
                   // Finaliser avec le texte actuel si disponible
@@ -490,9 +540,13 @@ export default function ChatPage() {
                       setTimeout(() => {
                         setLocalMessages((localPrev) => {
                           // Garder les messages utilisateur
-                          const userMessages = localPrev.filter((m) => m.role === "user");
-                          const hasAssistant = localPrev.some((m) => m.role === "assistant");
-                          
+                          const userMessages = localPrev.filter(
+                            (m) => m.role === "user",
+                          );
+                          const hasAssistant = localPrev.some(
+                            (m) => m.role === "assistant",
+                          );
+
                           if (!hasAssistant) {
                             return [
                               ...userMessages,
@@ -506,23 +560,25 @@ export default function ChatPage() {
                           // Mettre à jour le contenu du message assistant
                           return [
                             ...userMessages,
-                            ...localPrev.filter((m) => m.role === "assistant").map((m) => ({
-                              ...m,
-                              content: finalText,
-                            })),
+                            ...localPrev
+                              .filter((m) => m.role === "assistant")
+                              .map((m) => ({
+                                ...m,
+                                content: finalText,
+                              })),
                           ];
                         });
                       }, 0);
                     }
                     return { ...prev, isStreaming: false };
                   });
-                  
+
                   // Rafraîchir la session
                   void utils.chat.getSession.invalidate({
                     sessionId: selectedSessionId ?? "",
                   });
                   void utils.chat.getSessions.invalidate();
-                  
+
                   // NE PAS nettoyer localMessages automatiquement
                   // Ils seront filtrés par displayMessages si déjà présents dans la session
                 } else if (eventType === "error") {
@@ -794,13 +850,15 @@ export default function ChatPage() {
                       <AnimatedCard className="bg-muted max-w-[85%] rounded-2xl px-5 py-4 shadow-sm">
                         {/* Raisonnement */}
                         {streamingData.reasoning.length > 0 && (
-                          <div className="mb-4 space-y-2 border-b border-border/50 pb-4">
+                          <div className="border-border/50 mb-4 space-y-2 border-b pb-4">
                             {streamingData.reasoning.map((reasoning, idx) => (
                               <div
                                 key={idx}
-                                className="text-muted-foreground rounded-lg bg-muted/50 p-3 text-xs"
+                                className="text-muted-foreground bg-muted/50 rounded-lg p-3 text-xs"
                               >
-                                <div className="mb-1 font-medium">💭 Raisonnement</div>
+                                <div className="mb-1 font-medium">
+                                  💭 Raisonnement
+                                </div>
                                 <div className="whitespace-pre-wrap">
                                   {reasoning.content}
                                 </div>
@@ -811,11 +869,11 @@ export default function ChatPage() {
 
                         {/* Outils utilisés */}
                         {streamingData.tools.length > 0 && (
-                          <div className="mb-4 space-y-2 border-b border-border/50 pb-4">
+                          <div className="border-border/50 mb-4 space-y-2 border-b pb-4">
                             {streamingData.tools.map((tool, idx) => (
                               <div
                                 key={idx}
-                                className="text-muted-foreground rounded-lg bg-muted/50 p-3 text-xs"
+                                className="text-muted-foreground bg-muted/50 rounded-lg p-3 text-xs"
                               >
                                 <div className="mb-1 font-medium">
                                   🔧 {tool.name}
@@ -836,12 +894,12 @@ export default function ChatPage() {
 
                         {/* Texte en cours de génération avec rendu markdown en temps réel */}
                         {streamingData.currentText && (
-                          <div className="markdown-content text-sm leading-relaxed relative">
+                          <div className="markdown-content relative text-sm leading-relaxed">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
                               {streamingData.currentText}
                             </ReactMarkdown>
                             {streamingData.isStreaming && (
-                              <span className="inline-block h-4 w-0.5 animate-pulse bg-primary ml-1 align-middle" />
+                              <span className="bg-primary ml-1 inline-block h-4 w-0.5 animate-pulse align-middle" />
                             )}
                           </div>
                         )}
@@ -973,12 +1031,12 @@ export default function ChatPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Intégrations requises</AlertDialogTitle>
             <AlertDialogDescription>
-              Les intégrations suivantes doivent être connectées avant
-              d{"'"}utiliser ce workflow :
+              Les intégrations suivantes doivent être connectées avant d{"'"}
+              utiliser ce workflow :
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="my-4">
-            <ul className="list-disc list-inside space-y-2">
+            <ul className="list-inside list-disc space-y-2">
               {missingIntegrationsDialog.missingIntegrations.map(
                 (integration, index) => (
                   <li key={index} className="text-sm">

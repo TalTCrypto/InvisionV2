@@ -158,8 +158,11 @@ export const adminRouter = createTRPCRouter({
           config,
           allowedRoles,
           allowedUserIds,
-          requiredIntegrations: (wf as { requiredIntegrations?: string | null }).requiredIntegrations
-            ? (JSON.parse((wf as { requiredIntegrations: string }).requiredIntegrations) as string[])
+          requiredIntegrations: (wf as { requiredIntegrations?: string | null })
+            .requiredIntegrations
+            ? (JSON.parse(
+                (wf as { requiredIntegrations: string }).requiredIntegrations,
+              ) as string[])
             : null,
           organizations: (wf.organizations ?? [])
             .map((wo) => {
@@ -488,9 +491,10 @@ export const adminRouter = createTRPCRouter({
               : null,
           }),
           ...(updateData.requiredIntegrations !== undefined && {
-            requiredIntegrations: updateData.requiredIntegrations.length > 0
-              ? JSON.stringify(updateData.requiredIntegrations)
-              : null,
+            requiredIntegrations:
+              updateData.requiredIntegrations.length > 0
+                ? JSON.stringify(updateData.requiredIntegrations)
+                : null,
           }),
         },
         include: {

@@ -85,8 +85,8 @@ export default async function IntegrationDetailPage({
         </p>
         <p className="text-muted-foreground mb-10 max-w-lg text-base leading-relaxed">
           L{"'"}intégration {integration.name} est connectée, mais la page
-          détaillée n{"'"}est pas encore disponible. Nous travaillons
-          activement sur cette fonctionnalité.
+          détaillée n{"'"}est pas encore disponible. Nous travaillons activement
+          sur cette fonctionnalité.
         </p>
 
         <div className="border-border/50 bg-muted/30 text-muted-foreground flex items-center gap-2 rounded-lg border px-5 py-3 text-sm">

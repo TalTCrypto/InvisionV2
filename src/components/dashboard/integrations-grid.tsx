@@ -645,18 +645,30 @@ export function IntegrationsGrid() {
     };
   }, [connected]);
 
-  // Récupérer les métriques YouTube (hook appelé de manière inconditionnelle avec paramètres stables)
+  // Récupérer les métriques YouTube avec cache agressif
   const { data: youtubeMetrics, isLoading: isLoadingYouTube } =
     api.integrations.getYouTubeMetrics.useQuery(
       { integrationKey: youtubeSlug },
-      { enabled: !!youtubeIntegration && youtubeSlug !== "" },
+      {
+        enabled: !!youtubeIntegration && youtubeSlug !== "",
+        staleTime: 1000 * 60 * 5, // 5 minutes (métriques changent peu)
+        gcTime: 1000 * 60 * 30, // 30 minutes
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+      },
     );
 
-  // Récupérer les métriques Instagram (hook appelé de manière inconditionnelle avec paramètres stables)
+  // Récupérer les métriques Instagram avec cache agressif
   const { data: instagramMetrics, isLoading: isLoadingInstagram } =
     api.integrations.getInstagramMetrics.useQuery(
       { integrationKey: instagramSlug },
-      { enabled: !!instagramIntegration && instagramSlug !== "" },
+      {
+        enabled: !!instagramIntegration && instagramSlug !== "",
+        staleTime: 1000 * 60 * 5, // 5 minutes (métriques changent peu)
+        gcTime: 1000 * 60 * 30, // 30 minutes
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+      },
     );
 
   if (isLoadingIntegrations) {

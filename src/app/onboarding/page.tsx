@@ -80,10 +80,14 @@ export default function OnboardingPage() {
     priorities?: Record<string, unknown>;
   }>({});
 
+  const utils = api.useUtils();
   const { data: status, isLoading } = api.onboarding.getStatus.useQuery();
 
   const completeOnboarding = api.onboarding.completeOnboarding.useMutation({
     onSuccess: () => {
+      // Invalider la query getStatus pour que l'état soit mis à jour côté client
+      void utils.onboarding.getStatus.invalidate();
+
       startTransition(() => {
         router.push("/onboarding/integrations");
         router.refresh();
@@ -91,13 +95,13 @@ export default function OnboardingPage() {
     },
   });
 
-  // Rediriger si pas connecté ou si l'onboarding est déjà complété
+  // Rediriger vers les intégrations si l'onboarding est déjà complété
   useEffect(() => {
     if (isLoading) return; // En attente du chargement
 
     if (status?.completed) {
       startTransition(() => {
-        router.push("/dashboard");
+        router.push("/onboarding/integrations");
       });
     }
   }, [status, isLoading, router, startTransition]);

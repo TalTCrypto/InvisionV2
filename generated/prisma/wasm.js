@@ -97,30 +97,24 @@ exports.Prisma.PostScalarFieldEnum = {
 
 exports.Prisma.UserScalarFieldEnum = {
   id: "id",
-  name: "name",
   email: "email",
-  emailVerified: "emailVerified",
+  name: "name",
   image: "image",
+  emailVerified: "emailVerified",
+  role: "role",
+  banned: "banned",
+  banReason: "banReason",
+  banExpires: "banExpires",
+  onboardingCompleted: "onboardingCompleted",
   createdAt: "createdAt",
   updatedAt: "updatedAt",
-};
-
-exports.Prisma.SessionScalarFieldEnum = {
-  id: "id",
-  expiresAt: "expiresAt",
-  token: "token",
-  createdAt: "createdAt",
-  updatedAt: "updatedAt",
-  ipAddress: "ipAddress",
-  userAgent: "userAgent",
-  userId: "userId",
 };
 
 exports.Prisma.AccountScalarFieldEnum = {
   id: "id",
+  userId: "userId",
   accountId: "accountId",
   providerId: "providerId",
-  userId: "userId",
   accessToken: "accessToken",
   refreshToken: "refreshToken",
   idToken: "idToken",
@@ -137,6 +131,118 @@ exports.Prisma.VerificationScalarFieldEnum = {
   identifier: "identifier",
   value: "value",
   expiresAt: "expiresAt",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.OrganizationScalarFieldEnum = {
+  id: "id",
+  name: "name",
+  slug: "slug",
+  logo: "logo",
+  metadata: "metadata",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.MemberScalarFieldEnum = {
+  id: "id",
+  organizationId: "organizationId",
+  userId: "userId",
+  role: "role",
+  createdAt: "createdAt",
+};
+
+exports.Prisma.InvitationScalarFieldEnum = {
+  id: "id",
+  organizationId: "organizationId",
+  email: "email",
+  role: "role",
+  status: "status",
+  teamId: "teamId",
+  inviterId: "inviterId",
+  expiresAt: "expiresAt",
+  createdAt: "createdAt",
+};
+
+exports.Prisma.TeamScalarFieldEnum = {
+  id: "id",
+  name: "name",
+  organizationId: "organizationId",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.TeamMemberScalarFieldEnum = {
+  id: "id",
+  teamId: "teamId",
+  userId: "userId",
+  createdAt: "createdAt",
+};
+
+exports.Prisma.OrganizationRoleScalarFieldEnum = {
+  id: "id",
+  organizationId: "organizationId",
+  role: "role",
+  permission: "permission",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.SessionScalarFieldEnum = {
+  id: "id",
+  userId: "userId",
+  expiresAt: "expiresAt",
+  token: "token",
+  ipAddress: "ipAddress",
+  userAgent: "userAgent",
+  activeOrganizationId: "activeOrganizationId",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.OnboardingStepScalarFieldEnum = {
+  id: "id",
+  stepKey: "stepKey",
+  completed: "completed",
+  data: "data",
+  userId: "userId",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.LangflowWorkflowScalarFieldEnum = {
+  id: "id",
+  name: "name",
+  description: "description",
+  workflowId: "workflowId",
+  category: "category",
+  isActive: "isActive",
+  config: "config",
+  requiredIntegrations: "requiredIntegrations",
+  allOrganizations: "allOrganizations",
+  allowedRoles: "allowedRoles",
+  allowedUserIds: "allowedUserIds",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.WorkflowOrganizationScalarFieldEnum = {
+  id: "id",
+  workflowId: "workflowId",
+  organizationId: "organizationId",
+  allowedRoles: "allowedRoles",
+  allowedUserIds: "allowedUserIds",
+  createdAt: "createdAt",
+};
+
+exports.Prisma.ChatSessionScalarFieldEnum = {
+  id: "id",
+  organizationId: "organizationId",
+  userId: "userId",
+  workflowId: "workflowId",
+  title: "title",
+  messages: "messages",
   createdAt: "createdAt",
   updatedAt: "updatedAt",
 };
@@ -159,9 +265,19 @@ exports.Prisma.NullsOrder = {
 exports.Prisma.ModelName = {
   Post: "Post",
   User: "User",
-  Session: "Session",
   Account: "Account",
   Verification: "Verification",
+  Organization: "Organization",
+  Member: "Member",
+  Invitation: "Invitation",
+  Team: "Team",
+  TeamMember: "TeamMember",
+  OrganizationRole: "OrganizationRole",
+  Session: "Session",
+  OnboardingStep: "OnboardingStep",
+  LangflowWorkflow: "LangflowWorkflow",
+  WorkflowOrganization: "WorkflowOrganization",
+  ChatSession: "ChatSession",
 };
 /**
  * Create the Client
@@ -175,7 +291,7 @@ const config = {
     },
     output: {
       value:
-        "/Users/thomasetienne/Documents/01_Projets/09_SaaS/Development/T3 Boiler/invision/generated/prisma",
+        "/Users/thomasetienne/Documents/01_Projets/09_SaaS/Development/T3 Boiler copie/invision/generated/prisma",
       fromEnvVar: null,
     },
     config: {
@@ -190,7 +306,7 @@ const config = {
     ],
     previewFeatures: [],
     sourceFilePath:
-      "/Users/thomasetienne/Documents/01_Projets/09_SaaS/Development/T3 Boiler/invision/prisma/schema.prisma",
+      "/Users/thomasetienne/Documents/01_Projets/09_SaaS/Development/T3 Boiler copie/invision/prisma/schema.prisma",
     isCustomOutput: true,
   },
   relativeEnvPaths: {
@@ -212,15 +328,15 @@ const config = {
     },
   },
   inlineSchema:
-    '// Prisma schema for Better Auth\n// learn more: https://better-auth.com/docs/concepts/database\n\ngenerator client {\n  provider = "prisma-client-js"\n  output   = "../generated/prisma"\n}\n\n// NOTE: When using mysql or sqlserver, uncomment the //@db.Text annotations in model Account below\n// Further reading:\n// https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string\n\ndatasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n\nmodel Post {\n  id        String   @id @default(cuid())\n  name      String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  createdBy   User   @relation(fields: [createdById], references: [id])\n  createdById String\n\n  @@index([name])\n}\n\nmodel User {\n  id            String    @id\n  name          String //@db.Text\n  email         String\n  emailVerified Boolean   @default(false)\n  image         String? //@db.Text\n  createdAt     DateTime  @default(now())\n  updatedAt     DateTime  @default(now()) @updatedAt\n  sessions      Session[]\n  accounts      Account[]\n  posts         Post[]\n\n  @@unique([email])\n  @@map("user")\n}\n\nmodel Session {\n  id        String   @id\n  expiresAt DateTime\n  token     String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  ipAddress String? //@db.Text\n  userAgent String? //@db.Text\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([token])\n  @@map("session")\n}\n\nmodel Account {\n  id                    String    @id\n  accountId             String //@db.Text\n  providerId            String //@db.Text\n  userId                String\n  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)\n  accessToken           String? //@db.Text\n  refreshToken          String? //@db.Text\n  idToken               String? //@db.Text\n  accessTokenExpiresAt  DateTime?\n  refreshTokenExpiresAt DateTime?\n  scope                 String? //@db.Text\n  password              String? //@db.Text\n  createdAt             DateTime  @default(now())\n  updatedAt             DateTime  @updatedAt\n\n  @@map("account")\n}\n\nmodel Verification {\n  id         String   @id\n  identifier String //@db.Text\n  value      String //@db.Text\n  expiresAt  DateTime\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @default(now()) @updatedAt\n\n  @@map("verification")\n}\n',
+    '// Prisma schema for Better Auth\n// learn more: https://better-auth.com/docs/concepts/database\n\ngenerator client {\n  provider = "prisma-client-js"\n  output   = "../generated/prisma"\n}\n\n// NOTE: When using mysql or sqlserver, uncomment the //@db.Text annotations in model Account below\n// Further reading:\n// https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string\n\ndatasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n\nmodel Post {\n  id        String   @id @default(cuid())\n  name      String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  createdBy   User   @relation(fields: [createdById], references: [id])\n  createdById String\n\n  @@index([name])\n}\n\nmodel User {\n  id                  String    @id @default(cuid())\n  email               String    @unique\n  name                String?\n  image               String?\n  emailVerified       Boolean   @default(false)\n  role                String? // Better Auth admin plugin: roles séparés par virgule (ex: "admin,user")\n  banned              Boolean? // Better Auth admin plugin: utilisateur banni\n  banReason           String? // Better Auth admin plugin: raison du bannissement\n  banExpires          DateTime? // Better Auth admin plugin: expiration du bannissement\n  onboardingCompleted Boolean   @default(false) // Onboarding complété\n  createdAt           DateTime  @default(now())\n  updatedAt           DateTime  @updatedAt\n\n  // Relations Better Auth\n  sessions Session[]\n  accounts Account[]\n\n  // Relations Business\n  posts           Post[]\n  onboardingSteps OnboardingStep[] // Étapes d\'onboarding complétées\n\n  // Relations Better Auth Organization Plugin\n  members     Member[] // Membres d\'organisations\n  invitations Invitation[] // Invitations envoyées\n  teams       TeamMember[] // Équipes (si teams enabled)\n\n  // Relations Chat IA\n  chatSessions ChatSession[] // Sessions de chat IA\n\n  @@map("user")\n}\n\nmodel Account {\n  id                    String    @id @default(cuid())\n  userId                String\n  accountId             String // Pour email/password, c\'est l\'email\n  providerId            String\n  accessToken           String?\n  refreshToken          String?\n  idToken               String?\n  accessTokenExpiresAt  DateTime?\n  refreshTokenExpiresAt DateTime?\n  scope                 String?\n  password              String?\n  createdAt             DateTime  @default(now())\n  updatedAt             DateTime  @updatedAt\n  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([providerId, accountId])\n  @@index([userId])\n  @@map("account")\n}\n\nmodel Verification {\n  id         String   @id @default(cuid())\n  identifier String\n  value      String\n  expiresAt  DateTime\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n\n  @@unique([identifier, value])\n  @@map("verification")\n}\n\n// Better Auth Organization Plugin Models\nmodel Organization {\n  id        String   @id @default(cuid())\n  name      String\n  slug      String   @unique\n  logo      String?\n  metadata  String? // JSON string pour métadonnées personnalisées (industry, size, revenue, etc.)\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  members           Member[]\n  invitations       Invitation[]\n  teams             Team[] // Si teams enabled\n  organizationRoles OrganizationRole[] // Si dynamicAccessControl enabled\n\n  // Relations Chat IA\n  workflowOrganizations WorkflowOrganization[] // Assignations de workflows à l\'organisation\n  chatSessions          ChatSession[] // Sessions de chat IA de l\'organisation\n\n  @@index([slug])\n  @@map("organization")\n}\n\nmodel Member {\n  id             String   @id @default(cuid())\n  organizationId String\n  userId         String\n  role           String   @default("member") // owner, admin, member\n  createdAt      DateTime @default(now())\n\n  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)\n  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([organizationId, userId])\n  @@index([userId])\n  @@index([organizationId])\n  @@index([userId, createdAt]) // Pour trier les membres par utilisateur et date\n  @@map("member")\n}\n\nmodel Invitation {\n  id             String    @id @default(cuid())\n  organizationId String\n  email          String\n  role           String\n  status         String    @default("pending") // pending, accepted, rejected, canceled\n  teamId         String? // Si teams enabled\n  inviterId      String\n  expiresAt      DateTime?\n  createdAt      DateTime  @default(now())\n\n  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)\n  inviter      User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)\n\n  @@index([organizationId])\n  @@index([email])\n  @@index([inviterId])\n  @@map("invitation")\n}\n\nmodel Team {\n  id             String   @id @default(cuid())\n  name           String\n  organizationId String\n  createdAt      DateTime @default(now())\n  updatedAt      DateTime @updatedAt\n\n  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)\n  members      TeamMember[]\n\n  @@index([organizationId])\n  @@map("team")\n}\n\nmodel TeamMember {\n  id        String   @id @default(cuid())\n  teamId    String\n  userId    String\n  createdAt DateTime @default(now())\n\n  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([teamId, userId])\n  @@index([userId])\n  @@index([teamId])\n  @@map("team_member")\n}\n\nmodel OrganizationRole {\n  id             String   @id @default(cuid())\n  organizationId String\n  role           String\n  permission     String // JSON string pour permissions\n  createdAt      DateTime @default(now())\n  updatedAt      DateTime @updatedAt\n\n  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)\n\n  @@index([organizationId])\n  @@map("organization_role")\n}\n\nmodel Session {\n  id                   String   @id @default(cuid())\n  userId               String\n  expiresAt            DateTime\n  token                String   @unique\n  ipAddress            String?\n  userAgent            String?\n  activeOrganizationId String? // Pour le plugin organization\n  createdAt            DateTime @default(now())\n  updatedAt            DateTime @updatedAt\n  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId])\n  @@index([token])\n  @@index([userId, expiresAt]) // Pour les requêtes fréquentes avec userId et expiresAt\n  @@map("session")\n}\n\nmodel OnboardingStep {\n  id        String   @id @default(cuid())\n  stepKey   String // Identifiant unique de l\'étape (welcome, organization, business-info, quiz, etc.)\n  completed Boolean  @default(false)\n  data      String? // JSON data pour cette étape\n  userId    String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([userId, stepKey])\n  @@index([userId])\n  @@map("onboarding_step")\n}\n\n// Chat IA Models\nmodel LangflowWorkflow {\n  id                   String   @id @default(cuid())\n  name                 String\n  description          String?\n  workflowId           String // ID du workflow Langflow\n  category             String // "orchestrator", "youtube", "instagram", etc.\n  isActive             Boolean  @default(true)\n  config               String? // JSON config (tweaks, etc.)\n  requiredIntegrations String? // JSON array des slugs d\'intégrations requises (ex: ["youtube", "instagram"]) - null = aucune intégration requise\n  // Assignation globale\n  allOrganizations     Boolean  @default(false) // Si true, accessible à toutes les organisations\n  // Restrictions d\'accès (par organisation)\n  allowedRoles         String? // JSON array des rôles autorisés (ex: ["owner", "admin", "custom_role"]) - null = tous les rôles\n  allowedUserIds       String? // JSON array des IDs utilisateurs autorisés - null = tous les utilisateurs\n  createdAt            DateTime @default(now())\n  updatedAt            DateTime @updatedAt\n\n  // Relation many-to-many avec les organisations\n  organizations WorkflowOrganization[]\n\n  @@index([category])\n  @@index([isActive])\n  @@map("langflow_workflow")\n}\n\n// Table de liaison pour les workflows et organisations\nmodel WorkflowOrganization {\n  id             String   @id @default(cuid())\n  workflowId     String\n  organizationId String\n  // Restrictions spécifiques à cette organisation (override les restrictions globales)\n  allowedRoles   String? // JSON array des rôles autorisés pour cette org\n  allowedUserIds String? // JSON array des IDs utilisateurs autorisés pour cette org\n  createdAt      DateTime @default(now())\n\n  workflow     LangflowWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)\n  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)\n\n  @@unique([workflowId, organizationId])\n  @@index([workflowId])\n  @@index([organizationId])\n  @@map("workflow_organization")\n}\n\nmodel ChatSession {\n  id             String   @id @default(cuid())\n  organizationId String\n  userId         String\n  workflowId     String? // ID du workflow Langflow utilisé\n  title          String? // Titre de la conversation (généré automatiquement)\n  messages       String // JSON array des messages\n  createdAt      DateTime @default(now())\n  updatedAt      DateTime @updatedAt\n\n  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)\n  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([organizationId])\n  @@index([userId])\n  @@index([organizationId, userId])\n  @@index([userId, createdAt]) // Pour trier les sessions par utilisateur et date\n  @@index([organizationId, createdAt]) // Pour trier les sessions par organisation et date\n  @@map("chat_session")\n}\n',
   inlineSchemaHash:
-    "13b811a21e98325911952479534b19039c5183588e791c7b9235c4279bb03147",
+    "c83439bad63f07b3e332c2d1ab4b130c58e0e35f699eb328c40350579c138dc3",
   copyEngine: true,
 };
 config.dirname = "/";
 
 config.runtimeDataModel = JSON.parse(
-  '{"models":{"Post":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"createdBy","kind":"object","type":"User","relationName":"PostToUser"},{"name":"createdById","kind":"scalar","type":"String"}],"dbName":null},"User":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"emailVerified","kind":"scalar","type":"Boolean"},{"name":"image","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"sessions","kind":"object","type":"Session","relationName":"SessionToUser"},{"name":"accounts","kind":"object","type":"Account","relationName":"AccountToUser"},{"name":"posts","kind":"object","type":"Post","relationName":"PostToUser"}],"dbName":"user"},"Session":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"token","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"ipAddress","kind":"scalar","type":"String"},{"name":"userAgent","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"SessionToUser"}],"dbName":"session"},"Account":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"accountId","kind":"scalar","type":"String"},{"name":"providerId","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"AccountToUser"},{"name":"accessToken","kind":"scalar","type":"String"},{"name":"refreshToken","kind":"scalar","type":"String"},{"name":"idToken","kind":"scalar","type":"String"},{"name":"accessTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"refreshTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"scope","kind":"scalar","type":"String"},{"name":"password","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"}],"dbName":"account"},"Verification":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"identifier","kind":"scalar","type":"String"},{"name":"value","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"}],"dbName":"verification"}},"enums":{},"types":{}}',
+  '{"models":{"Post":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"createdBy","kind":"object","type":"User","relationName":"PostToUser"},{"name":"createdById","kind":"scalar","type":"String"}],"dbName":null},"User":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"image","kind":"scalar","type":"String"},{"name":"emailVerified","kind":"scalar","type":"Boolean"},{"name":"role","kind":"scalar","type":"String"},{"name":"banned","kind":"scalar","type":"Boolean"},{"name":"banReason","kind":"scalar","type":"String"},{"name":"banExpires","kind":"scalar","type":"DateTime"},{"name":"onboardingCompleted","kind":"scalar","type":"Boolean"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"sessions","kind":"object","type":"Session","relationName":"SessionToUser"},{"name":"accounts","kind":"object","type":"Account","relationName":"AccountToUser"},{"name":"posts","kind":"object","type":"Post","relationName":"PostToUser"},{"name":"onboardingSteps","kind":"object","type":"OnboardingStep","relationName":"OnboardingStepToUser"},{"name":"members","kind":"object","type":"Member","relationName":"MemberToUser"},{"name":"invitations","kind":"object","type":"Invitation","relationName":"InvitationToUser"},{"name":"teams","kind":"object","type":"TeamMember","relationName":"TeamMemberToUser"},{"name":"chatSessions","kind":"object","type":"ChatSession","relationName":"ChatSessionToUser"}],"dbName":"user"},"Account":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"accountId","kind":"scalar","type":"String"},{"name":"providerId","kind":"scalar","type":"String"},{"name":"accessToken","kind":"scalar","type":"String"},{"name":"refreshToken","kind":"scalar","type":"String"},{"name":"idToken","kind":"scalar","type":"String"},{"name":"accessTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"refreshTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"scope","kind":"scalar","type":"String"},{"name":"password","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"user","kind":"object","type":"User","relationName":"AccountToUser"}],"dbName":"account"},"Verification":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"identifier","kind":"scalar","type":"String"},{"name":"value","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"}],"dbName":"verification"},"Organization":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"slug","kind":"scalar","type":"String"},{"name":"logo","kind":"scalar","type":"String"},{"name":"metadata","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"members","kind":"object","type":"Member","relationName":"MemberToOrganization"},{"name":"invitations","kind":"object","type":"Invitation","relationName":"InvitationToOrganization"},{"name":"teams","kind":"object","type":"Team","relationName":"OrganizationToTeam"},{"name":"organizationRoles","kind":"object","type":"OrganizationRole","relationName":"OrganizationToOrganizationRole"},{"name":"workflowOrganizations","kind":"object","type":"WorkflowOrganization","relationName":"OrganizationToWorkflowOrganization"},{"name":"chatSessions","kind":"object","type":"ChatSession","relationName":"ChatSessionToOrganization"}],"dbName":"organization"},"Member":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"role","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"organization","kind":"object","type":"Organization","relationName":"MemberToOrganization"},{"name":"user","kind":"object","type":"User","relationName":"MemberToUser"}],"dbName":"member"},"Invitation":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"role","kind":"scalar","type":"String"},{"name":"status","kind":"scalar","type":"String"},{"name":"teamId","kind":"scalar","type":"String"},{"name":"inviterId","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"organization","kind":"object","type":"Organization","relationName":"InvitationToOrganization"},{"name":"inviter","kind":"object","type":"User","relationName":"InvitationToUser"}],"dbName":"invitation"},"Team":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"organization","kind":"object","type":"Organization","relationName":"OrganizationToTeam"},{"name":"members","kind":"object","type":"TeamMember","relationName":"TeamToTeamMember"}],"dbName":"team"},"TeamMember":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"teamId","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"team","kind":"object","type":"Team","relationName":"TeamToTeamMember"},{"name":"user","kind":"object","type":"User","relationName":"TeamMemberToUser"}],"dbName":"team_member"},"OrganizationRole":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String"},{"name":"role","kind":"scalar","type":"String"},{"name":"permission","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"organization","kind":"object","type":"Organization","relationName":"OrganizationToOrganizationRole"}],"dbName":"organization_role"},"Session":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"token","kind":"scalar","type":"String"},{"name":"ipAddress","kind":"scalar","type":"String"},{"name":"userAgent","kind":"scalar","type":"String"},{"name":"activeOrganizationId","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"user","kind":"object","type":"User","relationName":"SessionToUser"}],"dbName":"session"},"OnboardingStep":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"stepKey","kind":"scalar","type":"String"},{"name":"completed","kind":"scalar","type":"Boolean"},{"name":"data","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"user","kind":"object","type":"User","relationName":"OnboardingStepToUser"}],"dbName":"onboarding_step"},"LangflowWorkflow":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"workflowId","kind":"scalar","type":"String"},{"name":"category","kind":"scalar","type":"String"},{"name":"isActive","kind":"scalar","type":"Boolean"},{"name":"config","kind":"scalar","type":"String"},{"name":"requiredIntegrations","kind":"scalar","type":"String"},{"name":"allOrganizations","kind":"scalar","type":"Boolean"},{"name":"allowedRoles","kind":"scalar","type":"String"},{"name":"allowedUserIds","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"organizations","kind":"object","type":"WorkflowOrganization","relationName":"LangflowWorkflowToWorkflowOrganization"}],"dbName":"langflow_workflow"},"WorkflowOrganization":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"workflowId","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String"},{"name":"allowedRoles","kind":"scalar","type":"String"},{"name":"allowedUserIds","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"workflow","kind":"object","type":"LangflowWorkflow","relationName":"LangflowWorkflowToWorkflowOrganization"},{"name":"organization","kind":"object","type":"Organization","relationName":"OrganizationToWorkflowOrganization"}],"dbName":"workflow_organization"},"ChatSession":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"workflowId","kind":"scalar","type":"String"},{"name":"title","kind":"scalar","type":"String"},{"name":"messages","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"organization","kind":"object","type":"Organization","relationName":"ChatSessionToOrganization"},{"name":"user","kind":"object","type":"User","relationName":"ChatSessionToUser"}],"dbName":"chat_session"}},"enums":{},"types":{}}',
 );
 defineDmmfProperty(exports.Prisma, config.runtimeDataModel);
 config.engineWasm = {

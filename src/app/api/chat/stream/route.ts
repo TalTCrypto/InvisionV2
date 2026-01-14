@@ -1,7 +1,10 @@
 import { type NextRequest } from "next/server";
 import { auth } from "~/server/better-auth";
 import { db } from "~/server/db";
-import { runLangflowWorkflow, extractMessageFromResponse } from "~/server/utils/langflow";
+import {
+  runLangflowWorkflow,
+  extractMessageFromResponse,
+} from "~/server/utils/langflow";
 import type { StreamingCallback } from "~/server/utils/langflow";
 
 export async function GET(req: NextRequest) {
@@ -64,9 +67,8 @@ export async function GET(req: NextRequest) {
       : {};
 
     const workflowTweaks =
-      (config.tweaks as
-        | Record<string, Record<string, unknown>>
-        | undefined) ?? {};
+      (config.tweaks as Record<string, Record<string, unknown>> | undefined) ??
+      {};
 
     // Fonction pour remplacer les variables dynamiques
     const replaceVariables = (value: unknown): unknown => {
@@ -134,86 +136,87 @@ export async function GET(req: NextRequest) {
           };
 
           // Lancer le workflow avec streaming
-          void runLangflowWorkflow(
-            workflow.workflowId,
-            requestBody,
-            onUpdate,
-          ).then(async (langflowResponse) => {
-            const assistantResponse = extractMessageFromResponse(langflowResponse);
+          void runLangflowWorkflow(workflow.workflowId, requestBody, onUpdate)
+            .then(async (langflowResponse) => {
+              const assistantResponse =
+                extractMessageFromResponse(langflowResponse);
 
-            // Récupérer la session à jour pour avoir tous les messages (y compris le message utilisateur)
-            const updatedSession = await db.chatSession.findFirst({
-              where: { id: chatSession.id },
-            });
-
-            if (!updatedSession) {
-              console.error("Session non trouvée lors de la mise à jour");
-              controller.close();
-              return;
-            }
-
-            // Mettre à jour la session en DB avec tous les messages existants + la réponse
-            const messages = JSON.parse(updatedSession.messages || "[]") as Array<{
-              role: "user" | "assistant";
-              content: string;
-              timestamp: string;
-            }>;
-
-            // Vérifier si le message assistant n'existe pas déjà
-            const hasAssistantMessage = messages.some(
-              (m) => m.role === "assistant" && m.content === assistantResponse
-            );
-
-            if (!hasAssistantMessage) {
-              messages.push({
-                role: "assistant",
-                content: assistantResponse,
-                timestamp: new Date().toISOString(),
+              // Récupérer la session à jour pour avoir tous les messages (y compris le message utilisateur)
+              const updatedSession = await db.chatSession.findFirst({
+                where: { id: chatSession.id },
               });
-            }
 
-            let title = updatedSession.title;
-            if (!title || title === "Nouvelle conversation") {
-              title = message.slice(0, 50).trim();
-              if (message.length > 50) {
-                title += "...";
-              }
-            }
-
-            await db.chatSession.update({
-              where: { id: chatSession.id },
-              data: {
-                messages: JSON.stringify(messages),
-                title,
-                updatedAt: new Date(),
-              },
-            });
-
-            // Envoyer le message final avec le texte complet
-            sendSSE(
-              { text: assistantResponse, complete: true },
-              "message",
-            );
-            // Attendre un peu avant de fermer pour s'assurer que le message est envoyé
-            setTimeout(() => {
-              try {
+              if (!updatedSession) {
+                console.error("Session non trouvée lors de la mise à jour");
                 controller.close();
-              } catch {
-                // Ignorer les erreurs de fermeture
+                return;
               }
-            }, 200);
-          }).catch((error) => {
-            console.error("Erreur lors de l'appel Langflow:", error);
-            sendSSE(
-              { error: "Erreur lors de la génération de la réponse" },
-              "error",
-            );
-            controller.close();
-          });
+
+              // Mettre à jour la session en DB avec tous les messages existants + la réponse
+              const messages = JSON.parse(
+                updatedSession.messages || "[]",
+              ) as Array<{
+                role: "user" | "assistant";
+                content: string;
+                timestamp: string;
+              }>;
+
+              // Vérifier si le message assistant n'existe pas déjà
+              const hasAssistantMessage = messages.some(
+                (m) =>
+                  m.role === "assistant" && m.content === assistantResponse,
+              );
+
+              if (!hasAssistantMessage) {
+                messages.push({
+                  role: "assistant",
+                  content: assistantResponse,
+                  timestamp: new Date().toISOString(),
+                });
+              }
+
+              let title = updatedSession.title;
+              if (!title || title === "Nouvelle conversation") {
+                title = message.slice(0, 50).trim();
+                if (message.length > 50) {
+                  title += "...";
+                }
+              }
+
+              await db.chatSession.update({
+                where: { id: chatSession.id },
+                data: {
+                  messages: JSON.stringify(messages),
+                  title,
+                  updatedAt: new Date(),
+                },
+              });
+
+              // Envoyer le message final avec le texte complet
+              sendSSE({ text: assistantResponse, complete: true }, "message");
+              // Attendre un peu avant de fermer pour s'assurer que le message est envoyé
+              setTimeout(() => {
+                try {
+                  controller.close();
+                } catch {
+                  // Ignorer les erreurs de fermeture
+                }
+              }, 200);
+            })
+            .catch((error) => {
+              console.error("Erreur lors de l'appel Langflow:", error);
+              sendSSE(
+                { error: "Erreur lors de la génération de la réponse" },
+                "error",
+              );
+              controller.close();
+            });
         } catch (error) {
           console.error("Erreur dans le stream:", error);
           sendSSE(
-            { error: error instanceof Error ? error.message : "Erreur inconnue" },
+            {
+              error: error instanceof Error ? error.message : "Erreur inconnue",
+            },
             "error",
           );
           controller.close();
@@ -225,7 +228,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
       },
     });
   } catch (error) {

@@ -127,30 +127,24 @@ exports.Prisma.PostScalarFieldEnum = {
 
 exports.Prisma.UserScalarFieldEnum = {
   id: "id",
-  name: "name",
   email: "email",
-  emailVerified: "emailVerified",
+  name: "name",
   image: "image",
+  emailVerified: "emailVerified",
+  role: "role",
+  banned: "banned",
+  banReason: "banReason",
+  banExpires: "banExpires",
+  onboardingCompleted: "onboardingCompleted",
   createdAt: "createdAt",
   updatedAt: "updatedAt",
-};
-
-exports.Prisma.SessionScalarFieldEnum = {
-  id: "id",
-  expiresAt: "expiresAt",
-  token: "token",
-  createdAt: "createdAt",
-  updatedAt: "updatedAt",
-  ipAddress: "ipAddress",
-  userAgent: "userAgent",
-  userId: "userId",
 };
 
 exports.Prisma.AccountScalarFieldEnum = {
   id: "id",
+  userId: "userId",
   accountId: "accountId",
   providerId: "providerId",
-  userId: "userId",
   accessToken: "accessToken",
   refreshToken: "refreshToken",
   idToken: "idToken",
@@ -167,6 +161,118 @@ exports.Prisma.VerificationScalarFieldEnum = {
   identifier: "identifier",
   value: "value",
   expiresAt: "expiresAt",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.OrganizationScalarFieldEnum = {
+  id: "id",
+  name: "name",
+  slug: "slug",
+  logo: "logo",
+  metadata: "metadata",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.MemberScalarFieldEnum = {
+  id: "id",
+  organizationId: "organizationId",
+  userId: "userId",
+  role: "role",
+  createdAt: "createdAt",
+};
+
+exports.Prisma.InvitationScalarFieldEnum = {
+  id: "id",
+  organizationId: "organizationId",
+  email: "email",
+  role: "role",
+  status: "status",
+  teamId: "teamId",
+  inviterId: "inviterId",
+  expiresAt: "expiresAt",
+  createdAt: "createdAt",
+};
+
+exports.Prisma.TeamScalarFieldEnum = {
+  id: "id",
+  name: "name",
+  organizationId: "organizationId",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.TeamMemberScalarFieldEnum = {
+  id: "id",
+  teamId: "teamId",
+  userId: "userId",
+  createdAt: "createdAt",
+};
+
+exports.Prisma.OrganizationRoleScalarFieldEnum = {
+  id: "id",
+  organizationId: "organizationId",
+  role: "role",
+  permission: "permission",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.SessionScalarFieldEnum = {
+  id: "id",
+  userId: "userId",
+  expiresAt: "expiresAt",
+  token: "token",
+  ipAddress: "ipAddress",
+  userAgent: "userAgent",
+  activeOrganizationId: "activeOrganizationId",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.OnboardingStepScalarFieldEnum = {
+  id: "id",
+  stepKey: "stepKey",
+  completed: "completed",
+  data: "data",
+  userId: "userId",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.LangflowWorkflowScalarFieldEnum = {
+  id: "id",
+  name: "name",
+  description: "description",
+  workflowId: "workflowId",
+  category: "category",
+  isActive: "isActive",
+  config: "config",
+  requiredIntegrations: "requiredIntegrations",
+  allOrganizations: "allOrganizations",
+  allowedRoles: "allowedRoles",
+  allowedUserIds: "allowedUserIds",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
+exports.Prisma.WorkflowOrganizationScalarFieldEnum = {
+  id: "id",
+  workflowId: "workflowId",
+  organizationId: "organizationId",
+  allowedRoles: "allowedRoles",
+  allowedUserIds: "allowedUserIds",
+  createdAt: "createdAt",
+};
+
+exports.Prisma.ChatSessionScalarFieldEnum = {
+  id: "id",
+  organizationId: "organizationId",
+  userId: "userId",
+  workflowId: "workflowId",
+  title: "title",
+  messages: "messages",
   createdAt: "createdAt",
   updatedAt: "updatedAt",
 };
@@ -189,9 +295,19 @@ exports.Prisma.NullsOrder = {
 exports.Prisma.ModelName = {
   Post: "Post",
   User: "User",
-  Session: "Session",
   Account: "Account",
   Verification: "Verification",
+  Organization: "Organization",
+  Member: "Member",
+  Invitation: "Invitation",
+  Team: "Team",
+  TeamMember: "TeamMember",
+  OrganizationRole: "OrganizationRole",
+  Session: "Session",
+  OnboardingStep: "OnboardingStep",
+  LangflowWorkflow: "LangflowWorkflow",
+  WorkflowOrganization: "WorkflowOrganization",
+  ChatSession: "ChatSession",
 };
 
 /**

@@ -178,8 +178,8 @@ export default async function Home() {
                 <p className="text-muted-foreground mx-auto mb-8 max-w-2xl text-base leading-relaxed sm:text-lg md:text-xl">
                   Une IA qui comprend votre business, analyse toutes vos
                   plateformes et prend des décisions stratégiques pour vous.
-                  Plus qu{"'"}un outil, c{"'"}est votre partenaire de
-                  croissance qui voit ce que vous ne voyez pas.
+                  Plus qu{"'"}un outil, c{"'"}est votre partenaire de croissance
+                  qui voit ce que vous ne voyez pas.
                 </p>
               </BlurFade>
 
@@ -233,8 +233,8 @@ export default async function Home() {
                 <p className="text-muted-foreground mx-auto max-w-2xl text-base sm:text-lg">
                   Ce n{"'"}est pas juste une IA de plus. C{"'"}est un système
                   qui comprend votre business et prend des décisions
-                  stratégiques pour vous faire gagner du temps et de
-                  l{"'"}argent.
+                  stratégiques pour vous faire gagner du temps et de l{"'"}
+                  argent.
                 </p>
               </div>
             </BlurFade>

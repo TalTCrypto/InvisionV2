@@ -210,17 +210,26 @@ async function parseStreamingResponse(
           const event = parsed as LangflowStreamEvent;
           eventCount++;
 
-          // Logger chaque événement avec plus de détails
-          const timestamp = new Date().toISOString();
-          console.log(
-            `\n📨 [Langflow] [${timestamp}] Événement #${eventCount}: ${event.event}`,
-          );
+          // Logger seulement les événements importants (pas tous les partial)
+          const isImportantEvent =
+            event.event !== "add_message" ||
+            (event.data.properties &&
+              typeof event.data.properties === "object" &&
+              (event.data.properties as Record<string, unknown>).state ===
+                "complete");
 
-          if (event.data.id) {
-            console.log(`   └─ ID: ${event.data.id}`);
-          }
-          if (event.data.timestamp) {
-            console.log(`   └─ Timestamp: ${event.data.timestamp}`);
+          if (isImportantEvent || eventCount % 10 === 0) {
+            const timestamp = new Date().toISOString();
+            console.log(
+              `\n📨 [Langflow] [${timestamp}] Événement #${eventCount}: ${event.event}`,
+            );
+
+            if (event.data.id) {
+              console.log(`   └─ ID: ${event.data.id}`);
+            }
+            if (event.data.timestamp) {
+              console.log(`   └─ Timestamp: ${event.data.timestamp}`);
+            }
           }
 
           if (event.event === "token" && event.data.chunk) {
@@ -261,11 +270,9 @@ async function parseStreamingResponse(
               const state =
                 typeof props.state === "string" ? props.state : "unknown";
 
-              // Logger seulement si nouveau message ou si état est "complete" ou "partial"
-              if (isNewMessage || state === "complete" || state === "partial") {
-                console.log(
-                  `   └─ Sender: ${sender} (${senderName})`,
-                );
+              // Logger seulement si nouveau message ou si état est "complete"
+              if (isNewMessage || state === "complete") {
+                console.log(`   └─ Sender: ${sender} (${senderName})`);
                 console.log(`   └─ State: ${state}`);
               }
 
@@ -278,9 +285,10 @@ async function parseStreamingResponse(
               ) {
                 // Pour les messages "partial", on traite toujours pour avoir le raisonnement en temps réel
                 // Pour les messages "complete", on ne traite qu'une seule fois par message ID
-                const shouldProcessReasoning = 
-                  state === "partial" || 
-                  (state === "complete" && !reasoningByMessageId.has(messageId));
+                const shouldProcessReasoning =
+                  state === "partial" ||
+                  (state === "complete" &&
+                    !reasoningByMessageId.has(messageId));
 
                 if (shouldProcessReasoning) {
                   const messageReasoning: Array<{
@@ -289,17 +297,23 @@ async function parseStreamingResponse(
                     timestamp?: string;
                   }> = [];
 
-                  console.log(
-                    `   └─ Content blocks: ${event.data.content_blocks.length} (state: ${state})`,
-                  );
+                  // Logger seulement si nouveau message ou complet
+                  if (isNewMessage || state === "complete") {
+                    console.log(
+                      `   └─ Content blocks: ${event.data.content_blocks.length} (state: ${state})`,
+                    );
+                  }
                   for (const block of event.data.content_blocks) {
                     if (
                       block.title === "Agent Steps" &&
                       Array.isArray(block.contents)
                     ) {
-                      console.log(
-                        `   └─ Agent Steps: ${block.contents.length} étapes`,
-                      );
+                      // Logger seulement si nouveau message ou complet
+                      if (isNewMessage || state === "complete") {
+                        console.log(
+                          `   └─ Agent Steps: ${block.contents.length} étapes`,
+                        );
+                      }
                       for (let i = 0; i < block.contents.length; i++) {
                         const content = block.contents[i];
                         if (typeof content === "object" && content !== null) {
@@ -326,7 +340,7 @@ async function parseStreamingResponse(
                                   : undefined,
                             };
                             messageReasoning.push(toolStep);
-                            
+
                             // Envoyer l'utilisation d'outil via callback SSE
                             onUpdate?.({
                               type: "tool",
@@ -338,13 +352,16 @@ async function parseStreamingResponse(
                               },
                             });
 
-                            console.log(
-                              `🔧 [Langflow] [Étape ${i + 1}] Tool utilisé: ${toolName}${duration ? ` (${duration}ms)` : ""}`,
-                            );
-                            if (Object.keys(toolInput).length > 0) {
+                            // Logger seulement si nouveau message ou complet
+                            if (isNewMessage || state === "complete") {
                               console.log(
-                                `   └─ Input: ${JSON.stringify(toolInput, null, 2).substring(0, 200)}`,
+                                `🔧 [Langflow] [Étape ${i + 1}] Tool utilisé: ${toolName}${duration ? ` (${duration}ms)` : ""}`,
                               );
+                              if (Object.keys(toolInput).length > 0) {
+                                console.log(
+                                  `   └─ Input: ${JSON.stringify(toolInput, null, 2).substring(0, 200)}`,
+                                );
+                              }
                             }
                           } else if (contentObj.type === "text") {
                             const text =
@@ -361,17 +378,20 @@ async function parseStreamingResponse(
                                     : undefined,
                               };
                               messageReasoning.push(reasoningStep);
-                              
+
                               // Envoyer le raisonnement via callback SSE
                               onUpdate?.({
                                 type: "reasoning",
                                 data: { content: text },
                               });
-                              console.log(
-                                `💭 [Langflow] [Étape ${i + 1}] Raisonnement (${text.length} chars):`,
-                                text.substring(0, 200) +
-                                  (text.length > 200 ? "..." : ""),
-                              );
+                              // Logger seulement si nouveau message ou complet
+                              if (isNewMessage || state === "complete") {
+                                console.log(
+                                  `💭 [Langflow] [Étape ${i + 1}] Raisonnement (${text.length} chars):`,
+                                  text.substring(0, 200) +
+                                    (text.length > 200 ? "..." : ""),
+                                );
+                              }
                             }
                           } else {
                             const contentType =
@@ -413,9 +433,12 @@ async function parseStreamingResponse(
                         timestamp: messageId, // Utiliser messageId comme identifiant
                       }));
                       reasoning.push(...partialReasoning);
-                      console.log(
-                        `💭 [Langflow] Raisonnement partiel ajouté (${messageReasoning.length} étapes)`,
-                      );
+                      // Logger seulement tous les 5 événements partiels pour éviter spam
+                      if (eventCount % 5 === 0) {
+                        console.log(
+                          `💭 [Langflow] Raisonnement partiel (${messageReasoning.length} étapes) - événement #${eventCount}`,
+                        );
+                      }
                     }
                   }
                 }
@@ -437,10 +460,7 @@ async function parseStreamingResponse(
                 });
               }
               // Logger le message seulement si nouveau ou complet
-              if (
-                isNewMessage ||
-                isComplete
-              ) {
+              if (isNewMessage || isComplete) {
                 console.log(
                   `💬 [Langflow] Message complet (${event.data.text.length} chars):`,
                   event.data.text.substring(0, 150) +

@@ -3,13 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  MessageSquare,
-  Plug,
-  Users,
-  Settings,
-} from "lucide-react";
+import { Home, MessageSquare, Plug, Users, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -72,8 +66,31 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // On affiche le menu admin si on est sur une route admin (déjà vérifié côté serveur)
   const isAdminRoute = pathname?.startsWith("/dashboard/admin");
 
+  const utils = api.useUtils();
+
   const setActiveOrg = api.organization.setActiveOrganization.useMutation({
     onSuccess: () => {
+      // Invalider toutes les queries qui dépendent de l'organisation active
+      void utils.organization.getCurrentOrganization.invalidate();
+      void utils.organization.getUserOrganizations.invalidate();
+
+      // Invalider les queries du chat qui dépendent de l'organisation
+      void utils.chat.getWorkflows.invalidate();
+      void utils.chat.getSessions.invalidate();
+      void utils.chat.getSession.invalidate();
+
+      // Invalider les queries d'intégrations qui dépendent de l'organisation
+      void utils.integrations.list.invalidate();
+      void utils.integrations.getConnected.invalidate();
+      void utils.integrations.getYouTubeMetrics.invalidate();
+      void utils.integrations.getInstagramMetrics.invalidate();
+
+      // Invalider les queries admin (au cas où elles dépendent de l'organisation)
+      void utils.admin.listWorkflows.invalidate();
+      void utils.admin.listOrganizations.invalidate();
+      void utils.admin.listOrganizationMembers.invalidate();
+
+      // Rafraîchir la page pour s'assurer que tout est à jour
       router.refresh();
       setIsChangingOrg(false);
     },

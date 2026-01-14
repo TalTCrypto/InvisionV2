@@ -28,62 +28,271 @@ model Post {
 }
 
 model User {
-  id            String    @id
-  name          String //@db.Text
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String? //@db.Text
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  posts         Post[]
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  name                String?
+  image               String?
+  emailVerified       Boolean   @default(false)
+  role                String? // Better Auth admin plugin: roles séparés par virgule (ex: "admin,user")
+  banned              Boolean? // Better Auth admin plugin: utilisateur banni
+  banReason           String? // Better Auth admin plugin: raison du bannissement
+  banExpires          DateTime? // Better Auth admin plugin: expiration du bannissement
+  onboardingCompleted Boolean   @default(false) // Onboarding complété
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  @@unique([email])
+  // Relations Better Auth
+  sessions Session[]
+  accounts Account[]
+
+  // Relations Business
+  posts           Post[]
+  onboardingSteps OnboardingStep[] // Étapes d'onboarding complétées
+
+  // Relations Better Auth Organization Plugin
+  members     Member[] // Membres d'organisations
+  invitations Invitation[] // Invitations envoyées
+  teams       TeamMember[] // Équipes (si teams enabled)
+
+  // Relations Chat IA
+  chatSessions ChatSession[] // Sessions de chat IA
+
   @@map("user")
 }
 
-model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String? //@db.Text
-  userAgent String? //@db.Text
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([token])
-  @@map("session")
-}
-
 model Account {
-  id                    String    @id
-  accountId             String //@db.Text
-  providerId            String //@db.Text
+  id                    String    @id @default(cuid())
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String? //@db.Text
-  refreshToken          String? //@db.Text
-  idToken               String? //@db.Text
+  accountId             String // Pour email/password, c'est l'email
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
   accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
-  scope                 String? //@db.Text
-  password              String? //@db.Text
+  scope                 String?
+  password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([providerId, accountId])
+  @@index([userId])
   @@map("account")
 }
 
 model Verification {
-  id         String   @id
-  identifier String //@db.Text
-  value      String //@db.Text
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
   expiresAt  DateTime
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
+  updatedAt  DateTime @updatedAt
 
+  @@unique([identifier, value])
   @@map("verification")
+}
+
+// Better Auth Organization Plugin Models
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logo      String?
+  metadata  String? // JSON string pour métadonnées personnalisées (industry, size, revenue, etc.)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  members           Member[]
+  invitations       Invitation[]
+  teams             Team[] // Si teams enabled
+  organizationRoles OrganizationRole[] // Si dynamicAccessControl enabled
+
+  // Relations Chat IA
+  workflowOrganizations WorkflowOrganization[] // Assignations de workflows à l'organisation
+  chatSessions          ChatSession[] // Sessions de chat IA de l'organisation
+
+  @@index([slug])
+  @@map("organization")
+}
+
+model Member {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           String   @default("member") // owner, admin, member
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([userId, createdAt]) // Pour trier les membres par utilisateur et date
+  @@map("member")
+}
+
+model Invitation {
+  id             String    @id @default(cuid())
+  organizationId String
+  email          String
+  role           String
+  status         String    @default("pending") // pending, accepted, rejected, canceled
+  teamId         String? // Si teams enabled
+  inviterId      String
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter      User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([inviterId])
+  @@map("invitation")
+}
+
+model Team {
+  id             String   @id @default(cuid())
+  name           String
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      TeamMember[]
+
+  @@index([organizationId])
+  @@map("team")
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+  @@index([teamId])
+  @@map("team_member")
+}
+
+model OrganizationRole {
+  id             String   @id @default(cuid())
+  organizationId String
+  role           String
+  permission     String // JSON string pour permissions
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("organization_role")
+}
+
+model Session {
+  id                   String   @id @default(cuid())
+  userId               String
+  expiresAt            DateTime
+  token                String   @unique
+  ipAddress            String?
+  userAgent            String?
+  activeOrganizationId String? // Pour le plugin organization
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([userId, expiresAt]) // Pour les requêtes fréquentes avec userId et expiresAt
+  @@map("session")
+}
+
+model OnboardingStep {
+  id        String   @id @default(cuid())
+  stepKey   String // Identifiant unique de l'étape (welcome, organization, business-info, quiz, etc.)
+  completed Boolean  @default(false)
+  data      String? // JSON data pour cette étape
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stepKey])
+  @@index([userId])
+  @@map("onboarding_step")
+}
+
+// Chat IA Models
+model LangflowWorkflow {
+  id                   String   @id @default(cuid())
+  name                 String
+  description          String?
+  workflowId           String // ID du workflow Langflow
+  category             String // "orchestrator", "youtube", "instagram", etc.
+  isActive             Boolean  @default(true)
+  config               String? // JSON config (tweaks, etc.)
+  requiredIntegrations String? // JSON array des slugs d'intégrations requises (ex: ["youtube", "instagram"]) - null = aucune intégration requise
+  // Assignation globale
+  allOrganizations     Boolean  @default(false) // Si true, accessible à toutes les organisations
+  // Restrictions d'accès (par organisation)
+  allowedRoles         String? // JSON array des rôles autorisés (ex: ["owner", "admin", "custom_role"]) - null = tous les rôles
+  allowedUserIds       String? // JSON array des IDs utilisateurs autorisés - null = tous les utilisateurs
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relation many-to-many avec les organisations
+  organizations WorkflowOrganization[]
+
+  @@index([category])
+  @@index([isActive])
+  @@map("langflow_workflow")
+}
+
+// Table de liaison pour les workflows et organisations
+model WorkflowOrganization {
+  id             String   @id @default(cuid())
+  workflowId     String
+  organizationId String
+  // Restrictions spécifiques à cette organisation (override les restrictions globales)
+  allowedRoles   String? // JSON array des rôles autorisés pour cette org
+  allowedUserIds String? // JSON array des IDs utilisateurs autorisés pour cette org
+  createdAt      DateTime @default(now())
+
+  workflow     LangflowWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, organizationId])
+  @@index([workflowId])
+  @@index([organizationId])
+  @@map("workflow_organization")
+}
+
+model ChatSession {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  workflowId     String? // ID du workflow Langflow utilisé
+  title          String? // Titre de la conversation (généré automatiquement)
+  messages       String // JSON array des messages
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([organizationId, userId])
+  @@index([userId, createdAt]) // Pour trier les sessions par utilisateur et date
+  @@index([organizationId, createdAt]) // Pour trier les sessions par organisation et date
+  @@map("chat_session")
 }
