@@ -12,6 +12,7 @@ import { Particles } from "~/components/ui/particles";
 import { BlurFade } from "~/components/ui/blur-fade";
 import { AnimatedGradientText } from "~/components/ui/animated-gradient-text";
 import { authClient } from "~/server/better-auth/client";
+import { api } from "~/trpc/react";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -19,6 +20,9 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Vérifier le statut d'onboarding pour la redirection
+  const { data: onboardingStatus } = api.onboarding.getStatus.useQuery();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,8 +38,9 @@ export default function SignInPage() {
       if (result.error) {
         setError(result.error.message ?? "Erreur de connexion");
       } else {
-        // Rediriger vers l'onboarding ou le dashboard selon l'état
-        router.push("/onboarding");
+        // Attendre que le statut d'onboarding soit chargé, sinon rediriger vers onboarding par défaut
+        const redirectTo = onboardingStatus?.completed ? "/dashboard" : "/onboarding";
+        router.push(redirectTo);
         router.refresh();
       }
     } catch {
