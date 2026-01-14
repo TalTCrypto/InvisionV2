@@ -3,7 +3,8 @@ RUN apk add --no-cache libc6-compat
 RUN npm install -g npm@11.7.0
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+COPY prisma ./prisma
+RUN npm ci --ignore-scripts
 
 FROM node:20-alpine AS builder
 RUN npm install -g npm@11.7.0
