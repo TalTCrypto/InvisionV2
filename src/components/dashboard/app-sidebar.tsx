@@ -102,6 +102,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   const handleSignOut = async () => {
+    // Invalider complètement le cache avant la déconnexion pour éviter les données persistantes
+    // entre différents utilisateurs
+    void utils.invalidate();
+
     await authClient.signOut();
     router.push("/auth/signin");
     router.refresh();
