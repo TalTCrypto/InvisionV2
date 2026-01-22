@@ -8,6 +8,7 @@
     "build:docker": "next build",
     "check": "next lint && tsc --noEmit",
     "create-admin": "tsx scripts/create-admin.ts",
+    "create-user": "tsx scripts/create-user.ts",
     "db:generate": "prisma migrate dev",
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
