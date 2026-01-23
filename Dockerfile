@@ -46,7 +46,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN apk add --no-cache openssl libc6-compat netcat-openbsd && \
+RUN apk add --no-cache openssl libc6-compat netcat-openbsd python3 py3-pip ffmpeg && \
+    pip3 install --break-system-packages yt-dlp && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
