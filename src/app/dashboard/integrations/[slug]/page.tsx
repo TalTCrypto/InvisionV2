@@ -10,8 +10,13 @@ function normalizeSlug(slug: string): string {
   return slug.toLowerCase().replace(/-/g, "");
 }
 
-// Intégrations avec pages détaillées développées
-const DEVELOPED_INTEGRATIONS = new Set(["youtube", "instagram"]);
+// Intégrations avec pages dédiées (redirection automatique)
+const DEDICATED_PAGES: Record<string, string> = {
+  youtube: "/dashboard/integrations/youtube",
+};
+
+// Intégrations avec pages détaillées en développement
+const DEVELOPED_INTEGRATIONS = new Set(["instagram"]);
 
 export default async function IntegrationDetailPage({
   params,
@@ -35,6 +40,12 @@ export default async function IntegrationDetailPage({
 
   if (!integration) {
     redirect("/dashboard/integrations");
+  }
+
+  // Rediriger vers la page dédiée si elle existe
+  const dedicatedPage = DEDICATED_PAGES[normalizedSlug];
+  if (dedicatedPage) {
+    redirect(dedicatedPage);
   }
 
   const isDeveloped = DEVELOPED_INTEGRATIONS.has(normalizedSlug);
