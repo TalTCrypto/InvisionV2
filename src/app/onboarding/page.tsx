@@ -95,13 +95,13 @@ export default function OnboardingPage() {
     },
   });
 
-  // Rediriger vers les intégrations si l'onboarding est déjà complété
+  // Rediriger vers le dashboard si l'onboarding est déjà complété
   useEffect(() => {
     if (isLoading) return; // En attente du chargement
 
     if (status?.completed) {
       startTransition(() => {
-        router.push("/onboarding/integrations");
+        router.push("/dashboard");
       });
     }
   }, [status, isLoading, router, startTransition]);

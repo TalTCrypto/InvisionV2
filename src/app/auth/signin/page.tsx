@@ -21,8 +21,7 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Vérifier le statut d'onboarding pour la redirection
-  const { data: onboardingStatus } = api.onboarding.getStatus.useQuery();
+  const utils = api.useUtils();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +37,8 @@ export default function SignInPage() {
       if (result.error) {
         setError(result.error.message ?? "Erreur de connexion");
       } else {
-        // Attendre que le statut d'onboarding soit chargé, sinon rediriger vers onboarding par défaut
+        // Fetch le statut d'onboarding APRÈS la connexion réussie
+        const onboardingStatus = await utils.onboarding.getStatus.fetch();
         const redirectTo = onboardingStatus?.completed
           ? "/dashboard"
           : "/onboarding";

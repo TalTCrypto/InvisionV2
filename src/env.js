@@ -15,8 +15,10 @@ export const env = createEnv({
     BETTER_AUTH_GITHUB_CLIENT_SECRET: z.string(),
     DATABASE_URL: z.string().url(),
     COMPOSIO_API_KEY: z.string().min(1),
+    OPENAI_API_KEY: z.string().min(1),
     LANGFLOW_API_URL: z.string().url().optional(),
     LANGFLOW_API_KEY: z.string().optional(),
+    LANGFLOW_YOUTUBE_WORKFLOW_ID: z.string().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -42,8 +44,10 @@ export const env = createEnv({
       process.env.BETTER_AUTH_GITHUB_CLIENT_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
     COMPOSIO_API_KEY: process.env.COMPOSIO_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     LANGFLOW_API_URL: process.env.LANGFLOW_API_URL,
     LANGFLOW_API_KEY: process.env.LANGFLOW_API_KEY,
+    LANGFLOW_YOUTUBE_WORKFLOW_ID: process.env.LANGFLOW_YOUTUBE_WORKFLOW_ID,
     NODE_ENV: process.env.NODE_ENV,
   },
   /**
