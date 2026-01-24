@@ -9,6 +9,7 @@ import {
   chunkTranscript,
   type TranscriptResult,
 } from "~/server/utils/youtube-transcript";
+import { getYouTubeTranscriptViaWhisper } from "~/server/utils/youtube-whisper-transcript";
 
 export const youtubeRouter = createTRPCRouter({
   getVideoInfo: protectedProcedure
@@ -77,33 +78,76 @@ export const youtubeRouter = createTRPCRouter({
         });
       }
 
+      let result: TranscriptResult;
+      let usedWhisper = false;
+
+      // Try YouTube captions first
       try {
-        const result = await getYouTubeTranscript(
-          input.urlOrId,
-          input.language,
-        );
-
-        const formattedText = input.withTimestamps
-          ? formatTranscriptWithTimestamps(result.transcript)
-          : result.fullText;
-
-        return {
-          videoId,
-          metadata: result.metadata,
-          transcript: formattedText,
-          segments: result.transcript,
-          language: result.language,
-          wordCount: result.fullText.split(/\s+/).length,
-        };
+        result = await getYouTubeTranscript(input.urlOrId, input.language);
       } catch (error) {
+        console.log(
+          "[getTranscript] YouTube captions failed, will try Whisper:",
+          error,
+        );
+        result = { transcript: [], fullText: "", metadata: { videoId } };
+      }
+
+      // If YouTube captions are empty, use Whisper fallback
+      if (
+        !result.transcript ||
+        result.transcript.length === 0 ||
+        !result.fullText ||
+        result.fullText.trim().length === 0
+      ) {
+        console.log(
+          "[getTranscript] Empty transcript, trying Whisper fallback...",
+        );
+        try {
+          result = await getYouTubeTranscriptViaWhisper(
+            input.urlOrId,
+            input.language,
+          );
+          usedWhisper = true;
+          console.log("[getTranscript] Whisper fallback successful");
+        } catch (whisperError) {
+          console.error(
+            "[getTranscript] Whisper fallback also failed:",
+            whisperError,
+          );
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message:
+              "Impossible de récupérer le transcript (YouTube et Whisper ont échoué)",
+          });
+        }
+      }
+
+      // Final validation
+      if (
+        !result.transcript ||
+        result.transcript.length === 0 ||
+        !result.fullText ||
+        result.fullText.trim().length === 0
+      ) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Erreur lors de la récupération du transcript",
+          message: "Le transcript de cette vidéo est vide ou indisponible",
         });
       }
+
+      const formattedText = input.withTimestamps
+        ? formatTranscriptWithTimestamps(result.transcript)
+        : result.fullText;
+
+      return {
+        videoId,
+        metadata: result.metadata,
+        transcript: formattedText,
+        segments: result.transcript,
+        language: result.language,
+        wordCount: result.fullText.split(/\s+/).length,
+        transcriptSource: usedWhisper ? "whisper" : "youtube",
+      };
     }),
 
   prepareAnalysis: protectedProcedure
@@ -124,15 +168,42 @@ export const youtubeRouter = createTRPCRouter({
       }
 
       let result: TranscriptResult;
+
+      // Try YouTube captions first
       try {
         result = await getYouTubeTranscript(input.urlOrId, input.language);
       } catch (error) {
+        console.log("[prepareAnalysis] YouTube captions failed:", error);
+        result = { transcript: [], fullText: "", metadata: { videoId } };
+      }
+
+      // Whisper fallback if empty
+      if (
+        !result.transcript ||
+        result.transcript.length === 0 ||
+        !result.fullText ||
+        result.fullText.trim().length === 0
+      ) {
+        console.log("[prepareAnalysis] Trying Whisper fallback...");
+        try {
+          result = await getYouTubeTranscriptViaWhisper(
+            input.urlOrId,
+            input.language,
+          );
+        } catch (whisperError) {
+          console.error("[prepareAnalysis] Whisper also failed:", whisperError);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message:
+              "Impossible de récupérer le transcript (YouTube et Whisper ont échoué)",
+          });
+        }
+      }
+
+      if (!result.transcript || result.transcript.length === 0) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Erreur lors de la récupération du transcript",
+          message: "Le transcript est vide ou indisponible",
         });
       }
 
