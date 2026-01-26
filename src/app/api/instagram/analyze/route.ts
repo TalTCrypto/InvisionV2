@@ -38,11 +38,9 @@ export async function GET(req: NextRequest) {
       return new Response("Invalid Instagram URL or Reel ID", { status: 400 });
     }
 
-    // Get organization ID from session
-    const organizationId = session.session?.activeOrganizationId;
-    if (!organizationId) {
-      return new Response("No active organization", { status: 400 });
-    }
+    // Get organization ID from session (fallback to userId for personal accounts)
+    const organizationId =
+      session.session?.activeOrganizationId ?? session.user.id;
 
     // Check cache first (unless force refresh)
     if (!forceRefresh) {
