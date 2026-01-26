@@ -112,18 +112,20 @@ export async function getInstagramReelMetadata(
     );
 
     if (media) {
-      console.log(`[Instagram] Found matching reel in user media`);
+      console.log(
+        `[Instagram] Found reel ${reelId} in connected account - using Composio metadata`,
+      );
       return buildMetadataFromMedia(reelId, media);
     }
 
-    // Reel not found in user's media (probably from another account)
-    console.warn(
-      `[Instagram] Reel ${reelId} not found in connected account media (may be from another user)`,
+    // Reel not found in user's media (probably from another account) - this is normal
+    console.log(
+      `[Instagram] Reel ${reelId} from external account - will use yt-dlp metadata`,
     );
     return { reelId }; // Return minimal metadata, yt-dlp will fill the rest
   } catch (error) {
-    console.warn(
-      `[Instagram] Could not fetch metadata from Composio: ${error instanceof Error ? error.message : "Unknown error"}`,
+    console.log(
+      `[Instagram] Composio unavailable - will use yt-dlp metadata instead`,
     );
     return { reelId }; // Return minimal metadata, yt-dlp will fill the rest
   }

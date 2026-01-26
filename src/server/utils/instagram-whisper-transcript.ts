@@ -177,6 +177,9 @@ async function downloadReelVideo(reelId: string): Promise<{
           commentCount: info.comment_count,
           playCount: info.view_count,
         };
+        console.log(
+          `[Instagram-Whisper:${requestId}] Extracted metadata from yt-dlp: @${info.uploader ?? "unknown"}`,
+        );
       } catch {
         console.log(
           `[Instagram-Whisper:${requestId}] Could not parse metadata`,
