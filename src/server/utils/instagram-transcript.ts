@@ -107,32 +107,25 @@ export async function getInstagramReelMetadata(
     };
 
     // Try to find the reel by permalink containing the shortcode
-    const media = mediaData.data?.find(
-      (item) =>
-        (item.permalink?.includes(reelId) ?? false) ||
-        item.media_type === "VIDEO" ||
-        item.media_type === "REELS",
+    const media = mediaData.data?.find((item) =>
+      item.permalink?.includes(reelId),
     );
 
-    if (!media) {
-      console.warn(
-        `[Instagram] Could not find specific reel ${reelId}, using first video`,
-      );
-      const firstVideo = mediaData.data?.find((item) =>
-        ["VIDEO", "REELS"].includes(item.media_type ?? ""),
-      );
-      if (!firstVideo) {
-        throw new Error("No video media found for this account");
-      }
-      return buildMetadataFromMedia(reelId, firstVideo);
+    if (media) {
+      console.log(`[Instagram] Found matching reel in user media`);
+      return buildMetadataFromMedia(reelId, media);
     }
 
-    return buildMetadataFromMedia(reelId, media);
-  } catch (error) {
-    console.error("[Instagram] Metadata fetch error:", error);
-    throw new Error(
-      `Failed to fetch Instagram Reel metadata: ${error instanceof Error ? error.message : "Unknown error"}`,
+    // Reel not found in user's media (probably from another account)
+    console.warn(
+      `[Instagram] Reel ${reelId} not found in connected account media (may be from another user)`,
     );
+    return { reelId }; // Return minimal metadata, yt-dlp will fill the rest
+  } catch (error) {
+    console.warn(
+      `[Instagram] Could not fetch metadata from Composio: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+    return { reelId }; // Return minimal metadata, yt-dlp will fill the rest
   }
 }
 
