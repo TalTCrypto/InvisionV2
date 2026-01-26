@@ -231,21 +231,21 @@ model OnboardingStep {
 
 // Chat IA Models
 model LangflowWorkflow {
-  id                 String   @id @default(cuid())
-  name               String
-  description        String?
-  workflowId         String // ID du workflow Langflow
-  category           String // "orchestrator", "youtube", "instagram", etc.
-  isActive           Boolean  @default(true)
-  config             String? // JSON config (tweaks, etc.)
+  id                   String   @id @default(cuid())
+  name                 String
+  description          String?
+  workflowId           String // ID du workflow Langflow
+  category             String // "orchestrator", "youtube", "instagram", etc.
+  isActive             Boolean  @default(true)
+  config               String? // JSON config (tweaks, etc.)
   requiredIntegrations String? // JSON array des slugs d'intégrations requises (ex: ["youtube", "instagram"]) - null = aucune intégration requise
   // Assignation globale
-  allOrganizations Boolean  @default(false) // Si true, accessible à toutes les organisations
+  allOrganizations     Boolean  @default(false) // Si true, accessible à toutes les organisations
   // Restrictions d'accès (par organisation)
-  allowedRoles     String? // JSON array des rôles autorisés (ex: ["owner", "admin", "custom_role"]) - null = tous les rôles
-  allowedUserIds   String? // JSON array des IDs utilisateurs autorisés - null = tous les utilisateurs
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  allowedRoles         String? // JSON array des rôles autorisés (ex: ["owner", "admin", "custom_role"]) - null = tous les rôles
+  allowedUserIds       String? // JSON array des IDs utilisateurs autorisés - null = tous les utilisateurs
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   // Relation many-to-many avec les organisations
   organizations WorkflowOrganization[]
@@ -291,4 +291,25 @@ model ChatSession {
   @@index([userId])
   @@index([organizationId, userId])
   @@map("chat_session")
+}
+
+model InstagramAnalysis {
+  id             String   @id @default(cuid())
+  reelId         String
+  organizationId String
+  userId         String
+  metadata       String // JSON: ReelMetadata
+  transcript     String // Full transcript text
+  analysis       String // JSON: AnalysisResult
+  language       String?
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([reelId, organizationId])
+  @@index([reelId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("instagram_analysis")
 }

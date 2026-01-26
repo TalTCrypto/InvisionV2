@@ -2,17 +2,17 @@ import { type NextRequest } from "next/server";
 import { auth } from "~/server/better-auth";
 import { getComposioClient } from "~/server/utils/composio";
 import { getCachedConnectedAccounts } from "~/server/utils/composio-cache";
-import {
-  extractReelId,
-  type ReelMetadata,
-} from "~/server/utils/instagram-transcript";
+import { extractReelId } from "~/server/utils/instagram-transcript";
 import { getInstagramReelTranscriptViaWhisper } from "~/server/utils/instagram-whisper-transcript";
 import {
   InstagramReelAnalyzer,
   type ReelAnalysisResult,
 } from "~/server/utils/instagram-analyzer";
+import {
+  getCachedInstagramAnalysis,
+  setCachedInstagramAnalysis,
+} from "~/server/utils/instagram-cache";
 import { env } from "~/env";
-import { TRPCError } from "@trpc/server";
 
 export async function GET(req: NextRequest) {
   try {
@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const urlOrId = searchParams.get("reelId");
     const language = searchParams.get("language") ?? "fr";
+    const forceRefresh = searchParams.get("forceRefresh") === "true";
 
     if (!urlOrId) {
       return new Response("Missing reelId parameter", { status: 400 });
@@ -35,6 +36,74 @@ export async function GET(req: NextRequest) {
     const reelId = extractReelId(urlOrId);
     if (!reelId) {
       return new Response("Invalid Instagram URL or Reel ID", { status: 400 });
+    }
+
+    // Get organization ID from session
+    const organizationId = session.session?.activeOrganizationId;
+    if (!organizationId) {
+      return new Response("No active organization", { status: 400 });
+    }
+
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = await getCachedInstagramAnalysis(reelId, organizationId);
+      if (cached) {
+        console.log(
+          `[Instagram Analyze] Returning cached analysis for ${reelId}`,
+        );
+
+        // Return cached result as SSE stream
+        const stream = new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            const sendSSE = (data: unknown, event?: string) => {
+              const eventLine = event ? `event: ${event}\n` : "";
+              const dataLine = `data: ${JSON.stringify(data)}\n\n`;
+              controller.enqueue(encoder.encode(eventLine + dataLine));
+            };
+
+            sendSSE(
+              {
+                reelId,
+                caption: cached.metadata.caption,
+                username: cached.metadata.username,
+                likeCount: cached.metadata.likeCount,
+                commentCount: cached.metadata.commentCount,
+                duration: cached.metadata.duration,
+                wordCount: cached.transcript.split(/\s+/).length,
+                language: cached.language,
+                cached: true,
+                cachedAt: cached.cachedAt,
+              },
+              "metadata",
+            );
+
+            sendSSE(
+              {
+                complete: true,
+                parsedAnalysis: cached.analysis,
+              },
+              "analysis",
+            );
+
+            setTimeout(() => {
+              try {
+                controller.close();
+              } catch {
+                // Ignore
+              }
+            }, 100);
+          },
+        });
+
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        });
+      }
     }
 
     // Get Instagram account
@@ -173,6 +242,17 @@ export async function GET(req: NextRequest) {
 
           console.log(
             `[Instagram Analyze] Analysis complete for ${reelId}: score ${result.overallScore}`,
+          );
+
+          // Cache the analysis in database
+          await setCachedInstagramAnalysis(
+            reelId,
+            organizationId,
+            session.user.id,
+            metadata,
+            fullText,
+            result,
+            detectedLanguage,
           );
 
           // Close stream
