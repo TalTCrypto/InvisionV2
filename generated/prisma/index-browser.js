@@ -277,6 +277,20 @@ exports.Prisma.ChatSessionScalarFieldEnum = {
   updatedAt: "updatedAt",
 };
 
+exports.Prisma.InstagramAnalysisScalarFieldEnum = {
+  id: "id",
+  reelId: "reelId",
+  organizationId: "organizationId",
+  userId: "userId",
+  metadata: "metadata",
+  transcript: "transcript",
+  analysis: "analysis",
+  language: "language",
+  expiresAt: "expiresAt",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
 exports.Prisma.SortOrder = {
   asc: "asc",
   desc: "desc",
@@ -308,6 +322,7 @@ exports.Prisma.ModelName = {
   LangflowWorkflow: "LangflowWorkflow",
   WorkflowOrganization: "WorkflowOrganization",
   ChatSession: "ChatSession",
+  InstagramAnalysis: "InstagramAnalysis",
 };
 
 /**

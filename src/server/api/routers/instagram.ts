@@ -11,7 +11,6 @@ import { getCachedConnectedAccounts } from "~/server/utils/composio-cache";
 import {
   extractReelId,
   getInstagramReelMetadata,
-  type ReelMetadata,
 } from "~/server/utils/instagram-transcript";
 import { getInstagramReelTranscriptViaWhisper } from "~/server/utils/instagram-whisper-transcript";
 

@@ -92,6 +92,12 @@ export type WorkflowOrganization =
  *
  */
 export type ChatSession = $Result.DefaultSelection<Prisma.$ChatSessionPayload>;
+/**
+ * Model InstagramAnalysis
+ *
+ */
+export type InstagramAnalysis =
+  $Result.DefaultSelection<Prisma.$InstagramAnalysisPayload>;
 
 /**
  * ##  Prisma Client ʲˢ
@@ -410,6 +416,19 @@ export class PrismaClient<
    * ```
    */
   get chatSession(): Prisma.ChatSessionDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.instagramAnalysis`: Exposes CRUD operations for the **InstagramAnalysis** model.
+   * Example usage:
+   * ```ts
+   * // Fetch zero or more InstagramAnalyses
+   * const instagramAnalyses = await prisma.instagramAnalysis.findMany()
+   * ```
+   */
+  get instagramAnalysis(): Prisma.InstagramAnalysisDelegate<
+    ExtArgs,
+    ClientOptions
+  >;
 }
 
 export namespace Prisma {
@@ -884,6 +903,7 @@ export namespace Prisma {
     LangflowWorkflow: "LangflowWorkflow";
     WorkflowOrganization: "WorkflowOrganization";
     ChatSession: "ChatSession";
+    InstagramAnalysis: "InstagramAnalysis";
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName];
@@ -925,7 +945,8 @@ export namespace Prisma {
         | "onboardingStep"
         | "langflowWorkflow"
         | "workflowOrganization"
-        | "chatSession";
+        | "chatSession"
+        | "instagramAnalysis";
       txIsolationLevel: Prisma.TransactionIsolationLevel;
     };
     model: {
@@ -2057,6 +2078,82 @@ export namespace Prisma {
           };
         };
       };
+      InstagramAnalysis: {
+        payload: Prisma.$InstagramAnalysisPayload<ExtArgs>;
+        fields: Prisma.InstagramAnalysisFieldRefs;
+        operations: {
+          findUnique: {
+            args: Prisma.InstagramAnalysisFindUniqueArgs<ExtArgs>;
+            result: $Utils.PayloadToResult<Prisma.$InstagramAnalysisPayload> | null;
+          };
+          findUniqueOrThrow: {
+            args: Prisma.InstagramAnalysisFindUniqueOrThrowArgs<ExtArgs>;
+            result: $Utils.PayloadToResult<Prisma.$InstagramAnalysisPayload>;
+          };
+          findFirst: {
+            args: Prisma.InstagramAnalysisFindFirstArgs<ExtArgs>;
+            result: $Utils.PayloadToResult<Prisma.$InstagramAnalysisPayload> | null;
+          };
+          findFirstOrThrow: {
+            args: Prisma.InstagramAnalysisFindFirstOrThrowArgs<ExtArgs>;
+            result: $Utils.PayloadToResult<Prisma.$InstagramAnalysisPayload>;
+          };
+          findMany: {
+            args: Prisma.InstagramAnalysisFindManyArgs<ExtArgs>;
+            result: $Utils.PayloadToResult<Prisma.$InstagramAnalysisPayload>[];
+          };
+          create: {
+            args: Prisma.InstagramAnalysisCreateArgs<ExtArgs>;
+            result: $Utils.PayloadToResult<Prisma.$InstagramAnalysisPayload>;
+          };
+          createMany: {
+            args: Prisma.InstagramAnalysisCreateManyArgs<ExtArgs>;
+            result: BatchPayload;
+          };
+          createManyAndReturn: {
+            args: Prisma.InstagramAnalysisCreateManyAndReturnArgs<ExtArgs>;
+            result: $Utils.PayloadToResult<Prisma.$InstagramAnalysisPayload>[];
+          };
+          delete: {
+            args: Prisma.InstagramAnalysisDeleteArgs<ExtArgs>;
+            result: $Utils.PayloadToResult<Prisma.$InstagramAnalysisPayload>;
+          };
+          update: {
+            args: Prisma.InstagramAnalysisUpdateArgs<ExtArgs>;
+            result: $Utils.PayloadToResult<Prisma.$InstagramAnalysisPayload>;
+          };
+          deleteMany: {
+            args: Prisma.InstagramAnalysisDeleteManyArgs<ExtArgs>;
+            result: BatchPayload;
+          };
+          updateMany: {
+            args: Prisma.InstagramAnalysisUpdateManyArgs<ExtArgs>;
+            result: BatchPayload;
+          };
+          updateManyAndReturn: {
+            args: Prisma.InstagramAnalysisUpdateManyAndReturnArgs<ExtArgs>;
+            result: $Utils.PayloadToResult<Prisma.$InstagramAnalysisPayload>[];
+          };
+          upsert: {
+            args: Prisma.InstagramAnalysisUpsertArgs<ExtArgs>;
+            result: $Utils.PayloadToResult<Prisma.$InstagramAnalysisPayload>;
+          };
+          aggregate: {
+            args: Prisma.InstagramAnalysisAggregateArgs<ExtArgs>;
+            result: $Utils.Optional<AggregateInstagramAnalysis>;
+          };
+          groupBy: {
+            args: Prisma.InstagramAnalysisGroupByArgs<ExtArgs>;
+            result: $Utils.Optional<InstagramAnalysisGroupByOutputType>[];
+          };
+          count: {
+            args: Prisma.InstagramAnalysisCountArgs<ExtArgs>;
+            result:
+              | $Utils.Optional<InstagramAnalysisCountAggregateOutputType>
+              | number;
+          };
+        };
+      };
     };
   } & {
     other: {
@@ -2172,6 +2269,7 @@ export namespace Prisma {
     langflowWorkflow?: LangflowWorkflowOmit;
     workflowOrganization?: WorkflowOrganizationOmit;
     chatSession?: ChatSessionOmit;
+    instagramAnalysis?: InstagramAnalysisOmit;
   };
 
   /* Types for Logging */
@@ -23391,6 +23489,1349 @@ export namespace Prisma {
   };
 
   /**
+   * Model InstagramAnalysis
+   */
+
+  export type AggregateInstagramAnalysis = {
+    _count: InstagramAnalysisCountAggregateOutputType | null;
+    _min: InstagramAnalysisMinAggregateOutputType | null;
+    _max: InstagramAnalysisMaxAggregateOutputType | null;
+  };
+
+  export type InstagramAnalysisMinAggregateOutputType = {
+    id: string | null;
+    reelId: string | null;
+    organizationId: string | null;
+    userId: string | null;
+    metadata: string | null;
+    transcript: string | null;
+    analysis: string | null;
+    language: string | null;
+    expiresAt: Date | null;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+  };
+
+  export type InstagramAnalysisMaxAggregateOutputType = {
+    id: string | null;
+    reelId: string | null;
+    organizationId: string | null;
+    userId: string | null;
+    metadata: string | null;
+    transcript: string | null;
+    analysis: string | null;
+    language: string | null;
+    expiresAt: Date | null;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+  };
+
+  export type InstagramAnalysisCountAggregateOutputType = {
+    id: number;
+    reelId: number;
+    organizationId: number;
+    userId: number;
+    metadata: number;
+    transcript: number;
+    analysis: number;
+    language: number;
+    expiresAt: number;
+    createdAt: number;
+    updatedAt: number;
+    _all: number;
+  };
+
+  export type InstagramAnalysisMinAggregateInputType = {
+    id?: true;
+    reelId?: true;
+    organizationId?: true;
+    userId?: true;
+    metadata?: true;
+    transcript?: true;
+    analysis?: true;
+    language?: true;
+    expiresAt?: true;
+    createdAt?: true;
+    updatedAt?: true;
+  };
+
+  export type InstagramAnalysisMaxAggregateInputType = {
+    id?: true;
+    reelId?: true;
+    organizationId?: true;
+    userId?: true;
+    metadata?: true;
+    transcript?: true;
+    analysis?: true;
+    language?: true;
+    expiresAt?: true;
+    createdAt?: true;
+    updatedAt?: true;
+  };
+
+  export type InstagramAnalysisCountAggregateInputType = {
+    id?: true;
+    reelId?: true;
+    organizationId?: true;
+    userId?: true;
+    metadata?: true;
+    transcript?: true;
+    analysis?: true;
+    language?: true;
+    expiresAt?: true;
+    createdAt?: true;
+    updatedAt?: true;
+    _all?: true;
+  };
+
+  export type InstagramAnalysisAggregateArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Filter which InstagramAnalysis to aggregate.
+     */
+    where?: InstagramAnalysisWhereInput;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of InstagramAnalyses to fetch.
+     */
+    orderBy?:
+      | InstagramAnalysisOrderByWithRelationInput
+      | InstagramAnalysisOrderByWithRelationInput[];
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the start position
+     */
+    cursor?: InstagramAnalysisWhereUniqueInput;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` InstagramAnalyses from the position of the cursor.
+     */
+    take?: number;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` InstagramAnalyses.
+     */
+    skip?: number;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Count returned InstagramAnalyses
+     **/
+    _count?: true | InstagramAnalysisCountAggregateInputType;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to find the minimum value
+     **/
+    _min?: InstagramAnalysisMinAggregateInputType;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to find the maximum value
+     **/
+    _max?: InstagramAnalysisMaxAggregateInputType;
+  };
+
+  export type GetInstagramAnalysisAggregateType<
+    T extends InstagramAnalysisAggregateArgs,
+  > = {
+    [P in keyof T & keyof AggregateInstagramAnalysis]: P extends
+      | "_count"
+      | "count"
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateInstagramAnalysis[P]>
+      : GetScalarType<T[P], AggregateInstagramAnalysis[P]>;
+  };
+
+  export type InstagramAnalysisGroupByArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    where?: InstagramAnalysisWhereInput;
+    orderBy?:
+      | InstagramAnalysisOrderByWithAggregationInput
+      | InstagramAnalysisOrderByWithAggregationInput[];
+    by: InstagramAnalysisScalarFieldEnum[] | InstagramAnalysisScalarFieldEnum;
+    having?: InstagramAnalysisScalarWhereWithAggregatesInput;
+    take?: number;
+    skip?: number;
+    _count?: InstagramAnalysisCountAggregateInputType | true;
+    _min?: InstagramAnalysisMinAggregateInputType;
+    _max?: InstagramAnalysisMaxAggregateInputType;
+  };
+
+  export type InstagramAnalysisGroupByOutputType = {
+    id: string;
+    reelId: string;
+    organizationId: string;
+    userId: string;
+    metadata: string;
+    transcript: string;
+    analysis: string;
+    language: string | null;
+    expiresAt: Date;
+    createdAt: Date;
+    updatedAt: Date;
+    _count: InstagramAnalysisCountAggregateOutputType | null;
+    _min: InstagramAnalysisMinAggregateOutputType | null;
+    _max: InstagramAnalysisMaxAggregateOutputType | null;
+  };
+
+  type GetInstagramAnalysisGroupByPayload<
+    T extends InstagramAnalysisGroupByArgs,
+  > = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<InstagramAnalysisGroupByOutputType, T["by"]> & {
+        [P in keyof T &
+          keyof InstagramAnalysisGroupByOutputType]: P extends "_count"
+          ? T[P] extends boolean
+            ? number
+            : GetScalarType<T[P], InstagramAnalysisGroupByOutputType[P]>
+          : GetScalarType<T[P], InstagramAnalysisGroupByOutputType[P]>;
+      }
+    >
+  >;
+
+  export type InstagramAnalysisSelect<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = $Extensions.GetSelect<
+    {
+      id?: boolean;
+      reelId?: boolean;
+      organizationId?: boolean;
+      userId?: boolean;
+      metadata?: boolean;
+      transcript?: boolean;
+      analysis?: boolean;
+      language?: boolean;
+      expiresAt?: boolean;
+      createdAt?: boolean;
+      updatedAt?: boolean;
+    },
+    ExtArgs["result"]["instagramAnalysis"]
+  >;
+
+  export type InstagramAnalysisSelectCreateManyAndReturn<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = $Extensions.GetSelect<
+    {
+      id?: boolean;
+      reelId?: boolean;
+      organizationId?: boolean;
+      userId?: boolean;
+      metadata?: boolean;
+      transcript?: boolean;
+      analysis?: boolean;
+      language?: boolean;
+      expiresAt?: boolean;
+      createdAt?: boolean;
+      updatedAt?: boolean;
+    },
+    ExtArgs["result"]["instagramAnalysis"]
+  >;
+
+  export type InstagramAnalysisSelectUpdateManyAndReturn<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = $Extensions.GetSelect<
+    {
+      id?: boolean;
+      reelId?: boolean;
+      organizationId?: boolean;
+      userId?: boolean;
+      metadata?: boolean;
+      transcript?: boolean;
+      analysis?: boolean;
+      language?: boolean;
+      expiresAt?: boolean;
+      createdAt?: boolean;
+      updatedAt?: boolean;
+    },
+    ExtArgs["result"]["instagramAnalysis"]
+  >;
+
+  export type InstagramAnalysisSelectScalar = {
+    id?: boolean;
+    reelId?: boolean;
+    organizationId?: boolean;
+    userId?: boolean;
+    metadata?: boolean;
+    transcript?: boolean;
+    analysis?: boolean;
+    language?: boolean;
+    expiresAt?: boolean;
+    createdAt?: boolean;
+    updatedAt?: boolean;
+  };
+
+  export type InstagramAnalysisOmit<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = $Extensions.GetOmit<
+    | "id"
+    | "reelId"
+    | "organizationId"
+    | "userId"
+    | "metadata"
+    | "transcript"
+    | "analysis"
+    | "language"
+    | "expiresAt"
+    | "createdAt"
+    | "updatedAt",
+    ExtArgs["result"]["instagramAnalysis"]
+  >;
+
+  export type $InstagramAnalysisPayload<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    name: "InstagramAnalysis";
+    objects: {};
+    scalars: $Extensions.GetPayloadResult<
+      {
+        id: string;
+        reelId: string;
+        organizationId: string;
+        userId: string;
+        metadata: string;
+        transcript: string;
+        analysis: string;
+        language: string | null;
+        expiresAt: Date;
+        createdAt: Date;
+        updatedAt: Date;
+      },
+      ExtArgs["result"]["instagramAnalysis"]
+    >;
+    composites: {};
+  };
+
+  type InstagramAnalysisGetPayload<
+    S extends boolean | null | undefined | InstagramAnalysisDefaultArgs,
+  > = $Result.GetResult<Prisma.$InstagramAnalysisPayload, S>;
+
+  type InstagramAnalysisCountArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = Omit<
+    InstagramAnalysisFindManyArgs,
+    "select" | "include" | "distinct" | "omit"
+  > & {
+    select?: InstagramAnalysisCountAggregateInputType | true;
+  };
+
+  export interface InstagramAnalysisDelegate<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+    GlobalOmitOptions = {},
+  > {
+    [K: symbol]: {
+      types: Prisma.TypeMap<ExtArgs>["model"]["InstagramAnalysis"];
+      meta: { name: "InstagramAnalysis" };
+    };
+    /**
+     * Find zero or one InstagramAnalysis that matches the filter.
+     * @param {InstagramAnalysisFindUniqueArgs} args - Arguments to find a InstagramAnalysis
+     * @example
+     * // Get one InstagramAnalysis
+     * const instagramAnalysis = await prisma.instagramAnalysis.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends InstagramAnalysisFindUniqueArgs>(
+      args: SelectSubset<T, InstagramAnalysisFindUniqueArgs<ExtArgs>>,
+    ): Prisma__InstagramAnalysisClient<
+      $Result.GetResult<
+        Prisma.$InstagramAnalysisPayload<ExtArgs>,
+        T,
+        "findUnique",
+        GlobalOmitOptions
+      > | null,
+      null,
+      ExtArgs,
+      GlobalOmitOptions
+    >;
+
+    /**
+     * Find one InstagramAnalysis that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {InstagramAnalysisFindUniqueOrThrowArgs} args - Arguments to find a InstagramAnalysis
+     * @example
+     * // Get one InstagramAnalysis
+     * const instagramAnalysis = await prisma.instagramAnalysis.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends InstagramAnalysisFindUniqueOrThrowArgs>(
+      args: SelectSubset<T, InstagramAnalysisFindUniqueOrThrowArgs<ExtArgs>>,
+    ): Prisma__InstagramAnalysisClient<
+      $Result.GetResult<
+        Prisma.$InstagramAnalysisPayload<ExtArgs>,
+        T,
+        "findUniqueOrThrow",
+        GlobalOmitOptions
+      >,
+      never,
+      ExtArgs,
+      GlobalOmitOptions
+    >;
+
+    /**
+     * Find the first InstagramAnalysis that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InstagramAnalysisFindFirstArgs} args - Arguments to find a InstagramAnalysis
+     * @example
+     * // Get one InstagramAnalysis
+     * const instagramAnalysis = await prisma.instagramAnalysis.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends InstagramAnalysisFindFirstArgs>(
+      args?: SelectSubset<T, InstagramAnalysisFindFirstArgs<ExtArgs>>,
+    ): Prisma__InstagramAnalysisClient<
+      $Result.GetResult<
+        Prisma.$InstagramAnalysisPayload<ExtArgs>,
+        T,
+        "findFirst",
+        GlobalOmitOptions
+      > | null,
+      null,
+      ExtArgs,
+      GlobalOmitOptions
+    >;
+
+    /**
+     * Find the first InstagramAnalysis that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InstagramAnalysisFindFirstOrThrowArgs} args - Arguments to find a InstagramAnalysis
+     * @example
+     * // Get one InstagramAnalysis
+     * const instagramAnalysis = await prisma.instagramAnalysis.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends InstagramAnalysisFindFirstOrThrowArgs>(
+      args?: SelectSubset<T, InstagramAnalysisFindFirstOrThrowArgs<ExtArgs>>,
+    ): Prisma__InstagramAnalysisClient<
+      $Result.GetResult<
+        Prisma.$InstagramAnalysisPayload<ExtArgs>,
+        T,
+        "findFirstOrThrow",
+        GlobalOmitOptions
+      >,
+      never,
+      ExtArgs,
+      GlobalOmitOptions
+    >;
+
+    /**
+     * Find zero or more InstagramAnalyses that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InstagramAnalysisFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all InstagramAnalyses
+     * const instagramAnalyses = await prisma.instagramAnalysis.findMany()
+     *
+     * // Get first 10 InstagramAnalyses
+     * const instagramAnalyses = await prisma.instagramAnalysis.findMany({ take: 10 })
+     *
+     * // Only select the `id`
+     * const instagramAnalysisWithIdOnly = await prisma.instagramAnalysis.findMany({ select: { id: true } })
+     *
+     */
+    findMany<T extends InstagramAnalysisFindManyArgs>(
+      args?: SelectSubset<T, InstagramAnalysisFindManyArgs<ExtArgs>>,
+    ): Prisma.PrismaPromise<
+      $Result.GetResult<
+        Prisma.$InstagramAnalysisPayload<ExtArgs>,
+        T,
+        "findMany",
+        GlobalOmitOptions
+      >
+    >;
+
+    /**
+     * Create a InstagramAnalysis.
+     * @param {InstagramAnalysisCreateArgs} args - Arguments to create a InstagramAnalysis.
+     * @example
+     * // Create one InstagramAnalysis
+     * const InstagramAnalysis = await prisma.instagramAnalysis.create({
+     *   data: {
+     *     // ... data to create a InstagramAnalysis
+     *   }
+     * })
+     *
+     */
+    create<T extends InstagramAnalysisCreateArgs>(
+      args: SelectSubset<T, InstagramAnalysisCreateArgs<ExtArgs>>,
+    ): Prisma__InstagramAnalysisClient<
+      $Result.GetResult<
+        Prisma.$InstagramAnalysisPayload<ExtArgs>,
+        T,
+        "create",
+        GlobalOmitOptions
+      >,
+      never,
+      ExtArgs,
+      GlobalOmitOptions
+    >;
+
+    /**
+     * Create many InstagramAnalyses.
+     * @param {InstagramAnalysisCreateManyArgs} args - Arguments to create many InstagramAnalyses.
+     * @example
+     * // Create many InstagramAnalyses
+     * const instagramAnalysis = await prisma.instagramAnalysis.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     */
+    createMany<T extends InstagramAnalysisCreateManyArgs>(
+      args?: SelectSubset<T, InstagramAnalysisCreateManyArgs<ExtArgs>>,
+    ): Prisma.PrismaPromise<BatchPayload>;
+
+    /**
+     * Create many InstagramAnalyses and returns the data saved in the database.
+     * @param {InstagramAnalysisCreateManyAndReturnArgs} args - Arguments to create many InstagramAnalyses.
+     * @example
+     * // Create many InstagramAnalyses
+     * const instagramAnalysis = await prisma.instagramAnalysis.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     * // Create many InstagramAnalyses and only return the `id`
+     * const instagramAnalysisWithIdOnly = await prisma.instagramAnalysis.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     *
+     */
+    createManyAndReturn<T extends InstagramAnalysisCreateManyAndReturnArgs>(
+      args?: SelectSubset<T, InstagramAnalysisCreateManyAndReturnArgs<ExtArgs>>,
+    ): Prisma.PrismaPromise<
+      $Result.GetResult<
+        Prisma.$InstagramAnalysisPayload<ExtArgs>,
+        T,
+        "createManyAndReturn",
+        GlobalOmitOptions
+      >
+    >;
+
+    /**
+     * Delete a InstagramAnalysis.
+     * @param {InstagramAnalysisDeleteArgs} args - Arguments to delete one InstagramAnalysis.
+     * @example
+     * // Delete one InstagramAnalysis
+     * const InstagramAnalysis = await prisma.instagramAnalysis.delete({
+     *   where: {
+     *     // ... filter to delete one InstagramAnalysis
+     *   }
+     * })
+     *
+     */
+    delete<T extends InstagramAnalysisDeleteArgs>(
+      args: SelectSubset<T, InstagramAnalysisDeleteArgs<ExtArgs>>,
+    ): Prisma__InstagramAnalysisClient<
+      $Result.GetResult<
+        Prisma.$InstagramAnalysisPayload<ExtArgs>,
+        T,
+        "delete",
+        GlobalOmitOptions
+      >,
+      never,
+      ExtArgs,
+      GlobalOmitOptions
+    >;
+
+    /**
+     * Update one InstagramAnalysis.
+     * @param {InstagramAnalysisUpdateArgs} args - Arguments to update one InstagramAnalysis.
+     * @example
+     * // Update one InstagramAnalysis
+     * const instagramAnalysis = await prisma.instagramAnalysis.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     *
+     */
+    update<T extends InstagramAnalysisUpdateArgs>(
+      args: SelectSubset<T, InstagramAnalysisUpdateArgs<ExtArgs>>,
+    ): Prisma__InstagramAnalysisClient<
+      $Result.GetResult<
+        Prisma.$InstagramAnalysisPayload<ExtArgs>,
+        T,
+        "update",
+        GlobalOmitOptions
+      >,
+      never,
+      ExtArgs,
+      GlobalOmitOptions
+    >;
+
+    /**
+     * Delete zero or more InstagramAnalyses.
+     * @param {InstagramAnalysisDeleteManyArgs} args - Arguments to filter InstagramAnalyses to delete.
+     * @example
+     * // Delete a few InstagramAnalyses
+     * const { count } = await prisma.instagramAnalysis.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     *
+     */
+    deleteMany<T extends InstagramAnalysisDeleteManyArgs>(
+      args?: SelectSubset<T, InstagramAnalysisDeleteManyArgs<ExtArgs>>,
+    ): Prisma.PrismaPromise<BatchPayload>;
+
+    /**
+     * Update zero or more InstagramAnalyses.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InstagramAnalysisUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many InstagramAnalyses
+     * const instagramAnalysis = await prisma.instagramAnalysis.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     *
+     */
+    updateMany<T extends InstagramAnalysisUpdateManyArgs>(
+      args: SelectSubset<T, InstagramAnalysisUpdateManyArgs<ExtArgs>>,
+    ): Prisma.PrismaPromise<BatchPayload>;
+
+    /**
+     * Update zero or more InstagramAnalyses and returns the data updated in the database.
+     * @param {InstagramAnalysisUpdateManyAndReturnArgs} args - Arguments to update many InstagramAnalyses.
+     * @example
+     * // Update many InstagramAnalyses
+     * const instagramAnalysis = await prisma.instagramAnalysis.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     * // Update zero or more InstagramAnalyses and only return the `id`
+     * const instagramAnalysisWithIdOnly = await prisma.instagramAnalysis.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     *
+     */
+    updateManyAndReturn<T extends InstagramAnalysisUpdateManyAndReturnArgs>(
+      args: SelectSubset<T, InstagramAnalysisUpdateManyAndReturnArgs<ExtArgs>>,
+    ): Prisma.PrismaPromise<
+      $Result.GetResult<
+        Prisma.$InstagramAnalysisPayload<ExtArgs>,
+        T,
+        "updateManyAndReturn",
+        GlobalOmitOptions
+      >
+    >;
+
+    /**
+     * Create or update one InstagramAnalysis.
+     * @param {InstagramAnalysisUpsertArgs} args - Arguments to update or create a InstagramAnalysis.
+     * @example
+     * // Update or create a InstagramAnalysis
+     * const instagramAnalysis = await prisma.instagramAnalysis.upsert({
+     *   create: {
+     *     // ... data to create a InstagramAnalysis
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the InstagramAnalysis we want to update
+     *   }
+     * })
+     */
+    upsert<T extends InstagramAnalysisUpsertArgs>(
+      args: SelectSubset<T, InstagramAnalysisUpsertArgs<ExtArgs>>,
+    ): Prisma__InstagramAnalysisClient<
+      $Result.GetResult<
+        Prisma.$InstagramAnalysisPayload<ExtArgs>,
+        T,
+        "upsert",
+        GlobalOmitOptions
+      >,
+      never,
+      ExtArgs,
+      GlobalOmitOptions
+    >;
+
+    /**
+     * Count the number of InstagramAnalyses.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InstagramAnalysisCountArgs} args - Arguments to filter InstagramAnalyses to count.
+     * @example
+     * // Count the number of InstagramAnalyses
+     * const count = await prisma.instagramAnalysis.count({
+     *   where: {
+     *     // ... the filter for the InstagramAnalyses we want to count
+     *   }
+     * })
+     **/
+    count<T extends InstagramAnalysisCountArgs>(
+      args?: Subset<T, InstagramAnalysisCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<"select", any>
+        ? T["select"] extends true
+          ? number
+          : GetScalarType<
+              T["select"],
+              InstagramAnalysisCountAggregateOutputType
+            >
+        : number
+    >;
+
+    /**
+     * Allows you to perform aggregations operations on a InstagramAnalysis.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InstagramAnalysisAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+     **/
+    aggregate<T extends InstagramAnalysisAggregateArgs>(
+      args: Subset<T, InstagramAnalysisAggregateArgs>,
+    ): Prisma.PrismaPromise<GetInstagramAnalysisAggregateType<T>>;
+
+    /**
+     * Group by InstagramAnalysis.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InstagramAnalysisGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     *
+     **/
+    groupBy<
+      T extends InstagramAnalysisGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<"skip", Keys<T>>,
+        Extends<"take", Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: InstagramAnalysisGroupByArgs["orderBy"] }
+        : { orderBy?: InstagramAnalysisGroupByArgs["orderBy"] },
+      OrderFields extends ExcludeUnderscoreKeys<
+        Keys<MaybeTupleToUnion<T["orderBy"]>>
+      >,
+      ByFields extends MaybeTupleToUnion<T["by"]>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T["having"]>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T["by"] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+        ? `Error: "by" must not be empty.`
+        : HavingValid extends False
+          ? {
+              [P in HavingFields]: P extends ByFields
+                ? never
+                : P extends string
+                  ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+                  : [
+                      Error,
+                      "Field ",
+                      P,
+                      ` in "having" needs to be provided in "by"`,
+                    ];
+            }[HavingFields]
+          : "take" extends Keys<T>
+            ? "orderBy" extends Keys<T>
+              ? ByValid extends True
+                ? {}
+                : {
+                    [P in OrderFields]: P extends ByFields
+                      ? never
+                      : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`;
+                  }[OrderFields]
+              : 'Error: If you provide "take", you also need to provide "orderBy"'
+            : "skip" extends Keys<T>
+              ? "orderBy" extends Keys<T>
+                ? ByValid extends True
+                  ? {}
+                  : {
+                      [P in OrderFields]: P extends ByFields
+                        ? never
+                        : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`;
+                    }[OrderFields]
+                : 'Error: If you provide "skip", you also need to provide "orderBy"'
+              : ByValid extends True
+                ? {}
+                : {
+                    [P in OrderFields]: P extends ByFields
+                      ? never
+                      : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`;
+                  }[OrderFields],
+    >(
+      args: SubsetIntersection<T, InstagramAnalysisGroupByArgs, OrderByArg> &
+        InputErrors,
+    ): {} extends InputErrors
+      ? GetInstagramAnalysisGroupByPayload<T>
+      : Prisma.PrismaPromise<InputErrors>;
+    /**
+     * Fields of the InstagramAnalysis model
+     */
+    readonly fields: InstagramAnalysisFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for InstagramAnalysis.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__InstagramAnalysisClient<
+    T,
+    Null = never,
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+    GlobalOmitOptions = {},
+  > extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise";
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(
+      onfulfilled?:
+        | ((value: T) => TResult1 | PromiseLike<TResult1>)
+        | undefined
+        | null,
+      onrejected?:
+        | ((reason: any) => TResult2 | PromiseLike<TResult2>)
+        | undefined
+        | null,
+    ): $Utils.JsPromise<TResult1 | TResult2>;
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(
+      onrejected?:
+        | ((reason: any) => TResult | PromiseLike<TResult>)
+        | undefined
+        | null,
+    ): $Utils.JsPromise<T | TResult>;
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>;
+  }
+
+  /**
+   * Fields of the InstagramAnalysis model
+   */
+  interface InstagramAnalysisFieldRefs {
+    readonly id: FieldRef<"InstagramAnalysis", "String">;
+    readonly reelId: FieldRef<"InstagramAnalysis", "String">;
+    readonly organizationId: FieldRef<"InstagramAnalysis", "String">;
+    readonly userId: FieldRef<"InstagramAnalysis", "String">;
+    readonly metadata: FieldRef<"InstagramAnalysis", "String">;
+    readonly transcript: FieldRef<"InstagramAnalysis", "String">;
+    readonly analysis: FieldRef<"InstagramAnalysis", "String">;
+    readonly language: FieldRef<"InstagramAnalysis", "String">;
+    readonly expiresAt: FieldRef<"InstagramAnalysis", "DateTime">;
+    readonly createdAt: FieldRef<"InstagramAnalysis", "DateTime">;
+    readonly updatedAt: FieldRef<"InstagramAnalysis", "DateTime">;
+  }
+
+  // Custom InputTypes
+  /**
+   * InstagramAnalysis findUnique
+   */
+  export type InstagramAnalysisFindUniqueArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelect<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+    /**
+     * Filter, which InstagramAnalysis to fetch.
+     */
+    where: InstagramAnalysisWhereUniqueInput;
+  };
+
+  /**
+   * InstagramAnalysis findUniqueOrThrow
+   */
+  export type InstagramAnalysisFindUniqueOrThrowArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelect<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+    /**
+     * Filter, which InstagramAnalysis to fetch.
+     */
+    where: InstagramAnalysisWhereUniqueInput;
+  };
+
+  /**
+   * InstagramAnalysis findFirst
+   */
+  export type InstagramAnalysisFindFirstArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelect<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+    /**
+     * Filter, which InstagramAnalysis to fetch.
+     */
+    where?: InstagramAnalysisWhereInput;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of InstagramAnalyses to fetch.
+     */
+    orderBy?:
+      | InstagramAnalysisOrderByWithRelationInput
+      | InstagramAnalysisOrderByWithRelationInput[];
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for searching for InstagramAnalyses.
+     */
+    cursor?: InstagramAnalysisWhereUniqueInput;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` InstagramAnalyses from the position of the cursor.
+     */
+    take?: number;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` InstagramAnalyses.
+     */
+    skip?: number;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of InstagramAnalyses.
+     */
+    distinct?:
+      | InstagramAnalysisScalarFieldEnum
+      | InstagramAnalysisScalarFieldEnum[];
+  };
+
+  /**
+   * InstagramAnalysis findFirstOrThrow
+   */
+  export type InstagramAnalysisFindFirstOrThrowArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelect<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+    /**
+     * Filter, which InstagramAnalysis to fetch.
+     */
+    where?: InstagramAnalysisWhereInput;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of InstagramAnalyses to fetch.
+     */
+    orderBy?:
+      | InstagramAnalysisOrderByWithRelationInput
+      | InstagramAnalysisOrderByWithRelationInput[];
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for searching for InstagramAnalyses.
+     */
+    cursor?: InstagramAnalysisWhereUniqueInput;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` InstagramAnalyses from the position of the cursor.
+     */
+    take?: number;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` InstagramAnalyses.
+     */
+    skip?: number;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of InstagramAnalyses.
+     */
+    distinct?:
+      | InstagramAnalysisScalarFieldEnum
+      | InstagramAnalysisScalarFieldEnum[];
+  };
+
+  /**
+   * InstagramAnalysis findMany
+   */
+  export type InstagramAnalysisFindManyArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelect<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+    /**
+     * Filter, which InstagramAnalyses to fetch.
+     */
+    where?: InstagramAnalysisWhereInput;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of InstagramAnalyses to fetch.
+     */
+    orderBy?:
+      | InstagramAnalysisOrderByWithRelationInput
+      | InstagramAnalysisOrderByWithRelationInput[];
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for listing InstagramAnalyses.
+     */
+    cursor?: InstagramAnalysisWhereUniqueInput;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` InstagramAnalyses from the position of the cursor.
+     */
+    take?: number;
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` InstagramAnalyses.
+     */
+    skip?: number;
+    distinct?:
+      | InstagramAnalysisScalarFieldEnum
+      | InstagramAnalysisScalarFieldEnum[];
+  };
+
+  /**
+   * InstagramAnalysis create
+   */
+  export type InstagramAnalysisCreateArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelect<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+    /**
+     * The data needed to create a InstagramAnalysis.
+     */
+    data: XOR<
+      InstagramAnalysisCreateInput,
+      InstagramAnalysisUncheckedCreateInput
+    >;
+  };
+
+  /**
+   * InstagramAnalysis createMany
+   */
+  export type InstagramAnalysisCreateManyArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * The data used to create many InstagramAnalyses.
+     */
+    data: InstagramAnalysisCreateManyInput | InstagramAnalysisCreateManyInput[];
+    skipDuplicates?: boolean;
+  };
+
+  /**
+   * InstagramAnalysis createManyAndReturn
+   */
+  export type InstagramAnalysisCreateManyAndReturnArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelectCreateManyAndReturn<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+    /**
+     * The data used to create many InstagramAnalyses.
+     */
+    data: InstagramAnalysisCreateManyInput | InstagramAnalysisCreateManyInput[];
+    skipDuplicates?: boolean;
+  };
+
+  /**
+   * InstagramAnalysis update
+   */
+  export type InstagramAnalysisUpdateArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelect<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+    /**
+     * The data needed to update a InstagramAnalysis.
+     */
+    data: XOR<
+      InstagramAnalysisUpdateInput,
+      InstagramAnalysisUncheckedUpdateInput
+    >;
+    /**
+     * Choose, which InstagramAnalysis to update.
+     */
+    where: InstagramAnalysisWhereUniqueInput;
+  };
+
+  /**
+   * InstagramAnalysis updateMany
+   */
+  export type InstagramAnalysisUpdateManyArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * The data used to update InstagramAnalyses.
+     */
+    data: XOR<
+      InstagramAnalysisUpdateManyMutationInput,
+      InstagramAnalysisUncheckedUpdateManyInput
+    >;
+    /**
+     * Filter which InstagramAnalyses to update
+     */
+    where?: InstagramAnalysisWhereInput;
+    /**
+     * Limit how many InstagramAnalyses to update.
+     */
+    limit?: number;
+  };
+
+  /**
+   * InstagramAnalysis updateManyAndReturn
+   */
+  export type InstagramAnalysisUpdateManyAndReturnArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelectUpdateManyAndReturn<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+    /**
+     * The data used to update InstagramAnalyses.
+     */
+    data: XOR<
+      InstagramAnalysisUpdateManyMutationInput,
+      InstagramAnalysisUncheckedUpdateManyInput
+    >;
+    /**
+     * Filter which InstagramAnalyses to update
+     */
+    where?: InstagramAnalysisWhereInput;
+    /**
+     * Limit how many InstagramAnalyses to update.
+     */
+    limit?: number;
+  };
+
+  /**
+   * InstagramAnalysis upsert
+   */
+  export type InstagramAnalysisUpsertArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelect<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+    /**
+     * The filter to search for the InstagramAnalysis to update in case it exists.
+     */
+    where: InstagramAnalysisWhereUniqueInput;
+    /**
+     * In case the InstagramAnalysis found by the `where` argument doesn't exist, create a new InstagramAnalysis with this data.
+     */
+    create: XOR<
+      InstagramAnalysisCreateInput,
+      InstagramAnalysisUncheckedCreateInput
+    >;
+    /**
+     * In case the InstagramAnalysis was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<
+      InstagramAnalysisUpdateInput,
+      InstagramAnalysisUncheckedUpdateInput
+    >;
+  };
+
+  /**
+   * InstagramAnalysis delete
+   */
+  export type InstagramAnalysisDeleteArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelect<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+    /**
+     * Filter which InstagramAnalysis to delete.
+     */
+    where: InstagramAnalysisWhereUniqueInput;
+  };
+
+  /**
+   * InstagramAnalysis deleteMany
+   */
+  export type InstagramAnalysisDeleteManyArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Filter which InstagramAnalyses to delete
+     */
+    where?: InstagramAnalysisWhereInput;
+    /**
+     * Limit how many InstagramAnalyses to delete.
+     */
+    limit?: number;
+  };
+
+  /**
+   * InstagramAnalysis without action
+   */
+  export type InstagramAnalysisDefaultArgs<
+    ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs,
+  > = {
+    /**
+     * Select specific fields to fetch from the InstagramAnalysis
+     */
+    select?: InstagramAnalysisSelect<ExtArgs> | null;
+    /**
+     * Omit specific fields from the InstagramAnalysis
+     */
+    omit?: InstagramAnalysisOmit<ExtArgs> | null;
+  };
+
+  /**
    * Enums
    */
 
@@ -23608,6 +25049,23 @@ export namespace Prisma {
 
   export type ChatSessionScalarFieldEnum =
     (typeof ChatSessionScalarFieldEnum)[keyof typeof ChatSessionScalarFieldEnum];
+
+  export const InstagramAnalysisScalarFieldEnum: {
+    id: "id";
+    reelId: "reelId";
+    organizationId: "organizationId";
+    userId: "userId";
+    metadata: "metadata";
+    transcript: "transcript";
+    analysis: "analysis";
+    language: "language";
+    expiresAt: "expiresAt";
+    createdAt: "createdAt";
+    updatedAt: "updatedAt";
+  };
+
+  export type InstagramAnalysisScalarFieldEnum =
+    (typeof InstagramAnalysisScalarFieldEnum)[keyof typeof InstagramAnalysisScalarFieldEnum];
 
   export const SortOrder: {
     asc: "asc";
@@ -25020,6 +26478,108 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"ChatSession"> | Date | string;
   };
 
+  export type InstagramAnalysisWhereInput = {
+    AND?: InstagramAnalysisWhereInput | InstagramAnalysisWhereInput[];
+    OR?: InstagramAnalysisWhereInput[];
+    NOT?: InstagramAnalysisWhereInput | InstagramAnalysisWhereInput[];
+    id?: StringFilter<"InstagramAnalysis"> | string;
+    reelId?: StringFilter<"InstagramAnalysis"> | string;
+    organizationId?: StringFilter<"InstagramAnalysis"> | string;
+    userId?: StringFilter<"InstagramAnalysis"> | string;
+    metadata?: StringFilter<"InstagramAnalysis"> | string;
+    transcript?: StringFilter<"InstagramAnalysis"> | string;
+    analysis?: StringFilter<"InstagramAnalysis"> | string;
+    language?: StringNullableFilter<"InstagramAnalysis"> | string | null;
+    expiresAt?: DateTimeFilter<"InstagramAnalysis"> | Date | string;
+    createdAt?: DateTimeFilter<"InstagramAnalysis"> | Date | string;
+    updatedAt?: DateTimeFilter<"InstagramAnalysis"> | Date | string;
+  };
+
+  export type InstagramAnalysisOrderByWithRelationInput = {
+    id?: SortOrder;
+    reelId?: SortOrder;
+    organizationId?: SortOrder;
+    userId?: SortOrder;
+    metadata?: SortOrder;
+    transcript?: SortOrder;
+    analysis?: SortOrder;
+    language?: SortOrderInput | SortOrder;
+    expiresAt?: SortOrder;
+    createdAt?: SortOrder;
+    updatedAt?: SortOrder;
+  };
+
+  export type InstagramAnalysisWhereUniqueInput = Prisma.AtLeast<
+    {
+      id?: string;
+      reelId_organizationId?: InstagramAnalysisReelIdOrganizationIdCompoundUniqueInput;
+      AND?: InstagramAnalysisWhereInput | InstagramAnalysisWhereInput[];
+      OR?: InstagramAnalysisWhereInput[];
+      NOT?: InstagramAnalysisWhereInput | InstagramAnalysisWhereInput[];
+      reelId?: StringFilter<"InstagramAnalysis"> | string;
+      organizationId?: StringFilter<"InstagramAnalysis"> | string;
+      userId?: StringFilter<"InstagramAnalysis"> | string;
+      metadata?: StringFilter<"InstagramAnalysis"> | string;
+      transcript?: StringFilter<"InstagramAnalysis"> | string;
+      analysis?: StringFilter<"InstagramAnalysis"> | string;
+      language?: StringNullableFilter<"InstagramAnalysis"> | string | null;
+      expiresAt?: DateTimeFilter<"InstagramAnalysis"> | Date | string;
+      createdAt?: DateTimeFilter<"InstagramAnalysis"> | Date | string;
+      updatedAt?: DateTimeFilter<"InstagramAnalysis"> | Date | string;
+    },
+    "id" | "reelId_organizationId"
+  >;
+
+  export type InstagramAnalysisOrderByWithAggregationInput = {
+    id?: SortOrder;
+    reelId?: SortOrder;
+    organizationId?: SortOrder;
+    userId?: SortOrder;
+    metadata?: SortOrder;
+    transcript?: SortOrder;
+    analysis?: SortOrder;
+    language?: SortOrderInput | SortOrder;
+    expiresAt?: SortOrder;
+    createdAt?: SortOrder;
+    updatedAt?: SortOrder;
+    _count?: InstagramAnalysisCountOrderByAggregateInput;
+    _max?: InstagramAnalysisMaxOrderByAggregateInput;
+    _min?: InstagramAnalysisMinOrderByAggregateInput;
+  };
+
+  export type InstagramAnalysisScalarWhereWithAggregatesInput = {
+    AND?:
+      | InstagramAnalysisScalarWhereWithAggregatesInput
+      | InstagramAnalysisScalarWhereWithAggregatesInput[];
+    OR?: InstagramAnalysisScalarWhereWithAggregatesInput[];
+    NOT?:
+      | InstagramAnalysisScalarWhereWithAggregatesInput
+      | InstagramAnalysisScalarWhereWithAggregatesInput[];
+    id?: StringWithAggregatesFilter<"InstagramAnalysis"> | string;
+    reelId?: StringWithAggregatesFilter<"InstagramAnalysis"> | string;
+    organizationId?: StringWithAggregatesFilter<"InstagramAnalysis"> | string;
+    userId?: StringWithAggregatesFilter<"InstagramAnalysis"> | string;
+    metadata?: StringWithAggregatesFilter<"InstagramAnalysis"> | string;
+    transcript?: StringWithAggregatesFilter<"InstagramAnalysis"> | string;
+    analysis?: StringWithAggregatesFilter<"InstagramAnalysis"> | string;
+    language?:
+      | StringNullableWithAggregatesFilter<"InstagramAnalysis">
+      | string
+      | null;
+    expiresAt?:
+      | DateTimeWithAggregatesFilter<"InstagramAnalysis">
+      | Date
+      | string;
+    createdAt?:
+      | DateTimeWithAggregatesFilter<"InstagramAnalysis">
+      | Date
+      | string;
+    updatedAt?:
+      | DateTimeWithAggregatesFilter<"InstagramAnalysis">
+      | Date
+      | string;
+  };
+
   export type PostCreateInput = {
     id?: string;
     name: string;
@@ -26276,6 +27836,104 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string;
   };
 
+  export type InstagramAnalysisCreateInput = {
+    id?: string;
+    reelId: string;
+    organizationId: string;
+    userId: string;
+    metadata: string;
+    transcript: string;
+    analysis: string;
+    language?: string | null;
+    expiresAt: Date | string;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
+  };
+
+  export type InstagramAnalysisUncheckedCreateInput = {
+    id?: string;
+    reelId: string;
+    organizationId: string;
+    userId: string;
+    metadata: string;
+    transcript: string;
+    analysis: string;
+    language?: string | null;
+    expiresAt: Date | string;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
+  };
+
+  export type InstagramAnalysisUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string;
+    reelId?: StringFieldUpdateOperationsInput | string;
+    organizationId?: StringFieldUpdateOperationsInput | string;
+    userId?: StringFieldUpdateOperationsInput | string;
+    metadata?: StringFieldUpdateOperationsInput | string;
+    transcript?: StringFieldUpdateOperationsInput | string;
+    analysis?: StringFieldUpdateOperationsInput | string;
+    language?: NullableStringFieldUpdateOperationsInput | string | null;
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+  };
+
+  export type InstagramAnalysisUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string;
+    reelId?: StringFieldUpdateOperationsInput | string;
+    organizationId?: StringFieldUpdateOperationsInput | string;
+    userId?: StringFieldUpdateOperationsInput | string;
+    metadata?: StringFieldUpdateOperationsInput | string;
+    transcript?: StringFieldUpdateOperationsInput | string;
+    analysis?: StringFieldUpdateOperationsInput | string;
+    language?: NullableStringFieldUpdateOperationsInput | string | null;
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+  };
+
+  export type InstagramAnalysisCreateManyInput = {
+    id?: string;
+    reelId: string;
+    organizationId: string;
+    userId: string;
+    metadata: string;
+    transcript: string;
+    analysis: string;
+    language?: string | null;
+    expiresAt: Date | string;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
+  };
+
+  export type InstagramAnalysisUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string;
+    reelId?: StringFieldUpdateOperationsInput | string;
+    organizationId?: StringFieldUpdateOperationsInput | string;
+    userId?: StringFieldUpdateOperationsInput | string;
+    metadata?: StringFieldUpdateOperationsInput | string;
+    transcript?: StringFieldUpdateOperationsInput | string;
+    analysis?: StringFieldUpdateOperationsInput | string;
+    language?: NullableStringFieldUpdateOperationsInput | string | null;
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+  };
+
+  export type InstagramAnalysisUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string;
+    reelId?: StringFieldUpdateOperationsInput | string;
+    organizationId?: StringFieldUpdateOperationsInput | string;
+    userId?: StringFieldUpdateOperationsInput | string;
+    metadata?: StringFieldUpdateOperationsInput | string;
+    transcript?: StringFieldUpdateOperationsInput | string;
+    analysis?: StringFieldUpdateOperationsInput | string;
+    language?: NullableStringFieldUpdateOperationsInput | string | null;
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string;
+  };
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>;
     in?: string[] | ListStringFieldRefInput<$PrismaModel>;
@@ -27067,6 +28725,53 @@ export namespace Prisma {
     workflowId?: SortOrder;
     title?: SortOrder;
     messages?: SortOrder;
+    createdAt?: SortOrder;
+    updatedAt?: SortOrder;
+  };
+
+  export type InstagramAnalysisReelIdOrganizationIdCompoundUniqueInput = {
+    reelId: string;
+    organizationId: string;
+  };
+
+  export type InstagramAnalysisCountOrderByAggregateInput = {
+    id?: SortOrder;
+    reelId?: SortOrder;
+    organizationId?: SortOrder;
+    userId?: SortOrder;
+    metadata?: SortOrder;
+    transcript?: SortOrder;
+    analysis?: SortOrder;
+    language?: SortOrder;
+    expiresAt?: SortOrder;
+    createdAt?: SortOrder;
+    updatedAt?: SortOrder;
+  };
+
+  export type InstagramAnalysisMaxOrderByAggregateInput = {
+    id?: SortOrder;
+    reelId?: SortOrder;
+    organizationId?: SortOrder;
+    userId?: SortOrder;
+    metadata?: SortOrder;
+    transcript?: SortOrder;
+    analysis?: SortOrder;
+    language?: SortOrder;
+    expiresAt?: SortOrder;
+    createdAt?: SortOrder;
+    updatedAt?: SortOrder;
+  };
+
+  export type InstagramAnalysisMinOrderByAggregateInput = {
+    id?: SortOrder;
+    reelId?: SortOrder;
+    organizationId?: SortOrder;
+    userId?: SortOrder;
+    metadata?: SortOrder;
+    transcript?: SortOrder;
+    analysis?: SortOrder;
+    language?: SortOrder;
+    expiresAt?: SortOrder;
     createdAt?: SortOrder;
     updatedAt?: SortOrder;
   };

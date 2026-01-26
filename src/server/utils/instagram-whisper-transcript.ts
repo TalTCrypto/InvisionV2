@@ -122,16 +122,13 @@ async function downloadReelVideo(reelId: string): Promise<{
   try {
     console.log(`[Instagram-Whisper:${requestId}] Downloading reel ${reelId}`);
 
-    // Try downloading with yt-dlp
-    // Instagram may require cookies - yt-dlp will attempt to use browser cookies
+    // Try downloading with yt-dlp without browser cookies (cloud compatible)
     await executeYtDlp([
       "-f",
       "best[ext=mp4]/best",
       "--no-playlist",
       "--no-warnings",
       "--write-info-json",
-      "--cookies-from-browser",
-      "chrome", // Try Chrome cookies first
       "-o",
       join(tempDir, "%(id)s.%(ext)s"),
       url,

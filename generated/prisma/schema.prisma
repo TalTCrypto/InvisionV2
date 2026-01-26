@@ -130,7 +130,6 @@ model Member {
   @@unique([organizationId, userId])
   @@index([userId])
   @@index([organizationId])
-  @@index([userId, createdAt]) // Pour trier les membres par utilisateur et date
   @@map("member")
 }
 
@@ -211,7 +210,6 @@ model Session {
 
   @@index([userId])
   @@index([token])
-  @@index([userId, expiresAt]) // Pour les requêtes fréquentes avec userId et expiresAt
   @@map("session")
 }
 
@@ -292,7 +290,26 @@ model ChatSession {
   @@index([organizationId])
   @@index([userId])
   @@index([organizationId, userId])
-  @@index([userId, createdAt]) // Pour trier les sessions par utilisateur et date
-  @@index([organizationId, createdAt]) // Pour trier les sessions par organisation et date
   @@map("chat_session")
+}
+
+model InstagramAnalysis {
+  id             String   @id @default(cuid())
+  reelId         String
+  organizationId String
+  userId         String
+  metadata       String // JSON: ReelMetadata
+  transcript     String // Full transcript text
+  analysis       String // JSON: AnalysisResult
+  language       String?
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([reelId, organizationId])
+  @@index([reelId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("instagram_analysis")
 }

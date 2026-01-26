@@ -97,9 +97,7 @@ async function executeYtDlp(
  * Download audio from YouTube video using yt-dlp
  * Fully async with automatic cleanup
  */
-async function downloadAudio(
-  videoId: string,
-): Promise<{
+async function downloadAudio(videoId: string): Promise<{
   buffer: Buffer;
   metadata: VideoMetadata;
   cleanup: () => Promise<void>;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Instagram,
@@ -135,53 +135,7 @@ interface ReelMetadata {
   permalink?: string;
 }
 
-interface CachedAnalysis {
-  metadata: ReelMetadata;
-  transcript: string;
-  analysis: AnalysisResult;
-  cachedAt: number;
-}
-
 type AnalysisStep = "idle" | "fetching" | "analyzing" | "complete" | "error";
-
-const CACHE_KEY_PREFIX = "ig-reel-analysis-";
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 heures
-
-function getCachedAnalysis(reelId: string): CachedAnalysis | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const cached = localStorage.getItem(CACHE_KEY_PREFIX + reelId);
-    if (!cached) return null;
-    const data = JSON.parse(cached) as CachedAnalysis;
-    if (Date.now() - data.cachedAt > CACHE_DURATION) {
-      localStorage.removeItem(CACHE_KEY_PREFIX + reelId);
-      return null;
-    }
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-function setCachedAnalysis(
-  reelId: string,
-  metadata: ReelMetadata,
-  transcript: string,
-  analysis: AnalysisResult,
-): void {
-  if (typeof window === "undefined") return;
-  try {
-    const data: CachedAnalysis = {
-      metadata,
-      transcript,
-      analysis,
-      cachedAt: Date.now(),
-    };
-    localStorage.setItem(CACHE_KEY_PREFIX + reelId, JSON.stringify(data));
-  } catch {
-    // Ignore storage errors
-  }
-}
 
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -278,44 +232,9 @@ export default function InstagramReelsAnalysisPage() {
     { enabled: false },
   );
 
-  // Charger depuis le cache quand l'URL change
-  useEffect(() => {
-    const reelId = extractReelIdFromUrl(reelUrl);
-    if (!reelId) {
-      setIsCached(false);
-      return;
-    }
-
-    const cached = getCachedAnalysis(reelId);
-    if (cached) {
-      setMetadata(cached.metadata);
-      setTranscript(cached.transcript);
-      setAnalysis(cached.analysis);
-      setStep("complete");
-      setIsCached(true);
-    } else {
-      setIsCached(false);
-    }
-  }, [reelUrl]);
-
   const startAnalysis = useCallback(
     async (forceRefresh = false) => {
       if (!reelUrl.trim()) return;
-
-      const reelId = extractReelIdFromUrl(reelUrl);
-
-      // Vérifier le cache sauf si on force le refresh
-      if (!forceRefresh && reelId) {
-        const cached = getCachedAnalysis(reelId);
-        if (cached) {
-          setMetadata(cached.metadata);
-          setTranscript(cached.transcript);
-          setAnalysis(cached.analysis);
-          setStep("complete");
-          setIsCached(true);
-          return;
-        }
-      }
 
       setStep("fetching");
       setError(null);
@@ -341,15 +260,22 @@ export default function InstagramReelsAnalysisPage() {
         setTranscript(transcriptResult.data.transcript);
         setStep("analyzing");
 
+        const forceRefreshParam = forceRefresh ? "&forceRefresh=true" : "";
         const eventSource = new EventSource(
-          `/api/instagram/analyze?reelId=${encodeURIComponent(reelUrl)}&language=fr`,
+          `/api/instagram/analyze?reelId=${encodeURIComponent(reelUrl)}&language=fr${forceRefreshParam}`,
         );
 
         eventSource.addEventListener(
           "metadata",
           (event: MessageEvent<string>) => {
-            const data = JSON.parse(event.data) as ReelMetadata;
+            const data = JSON.parse(event.data) as ReelMetadata & {
+              cached?: boolean;
+              cachedAt?: number;
+            };
             setMetadata((prev) => ({ ...prev, ...data }));
+            if (data.cached) {
+              setIsCached(true);
+            }
           },
         );
 
@@ -383,16 +309,6 @@ export default function InstagramReelsAnalysisPage() {
               setAnalysis(data.parsedAnalysis);
               setStep("complete");
               eventSource.close();
-
-              // Sauvegarder dans le cache
-              if (reelId && transcriptResult.data) {
-                setCachedAnalysis(
-                  reelId,
-                  transcriptResult.data.metadata,
-                  transcriptResult.data.transcript,
-                  data.parsedAnalysis,
-                );
-              }
             }
           },
         );
