@@ -6,6 +6,7 @@ import { ThemeProvider } from "next-themes";
 
 import { TRPCReactProvider } from "~/trpc/react";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
+import { ClarityAnalytics } from "~/components/clarity-analytics";
 
 export const metadata: Metadata = {
   title: "InVision - Collaborez avec des Agents IA",
@@ -31,6 +32,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <ClarityAnalytics />
           <TRPCReactProvider>
             {children}
             <ThemeToggle />
