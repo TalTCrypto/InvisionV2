@@ -215,7 +215,7 @@ export async function GET(req: NextRequest) {
           console.error("Erreur dans le stream:", error);
           sendSSE(
             {
-              error: error instanceof Error ? error.message : "Erreur inconnue",
+              error: "Erreur lors de la génération de la réponse",
             },
             "error",
           );
@@ -235,7 +235,7 @@ export async function GET(req: NextRequest) {
     console.error("Erreur dans l'endpoint SSE:", error);
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Erreur inconnue",
+        error: "Erreur lors de la génération de la réponse",
       }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );

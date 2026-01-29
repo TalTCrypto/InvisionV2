@@ -86,9 +86,10 @@ export const instagramRouter = createTRPCRouter({
           throw error;
         }
 
+        console.error("[Instagram Router] Get reel info error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: `Impossible de récupérer les informations du Reel: ${error instanceof Error ? error.message : "Erreur inconnue"}`,
+          message: "Impossible de récupérer les informations du Reel",
         });
       }
     }),
@@ -170,9 +171,10 @@ export const instagramRouter = createTRPCRouter({
           throw error;
         }
 
+        console.error("[Instagram Router] Get transcript error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: `Impossible de transcrire le Reel: ${error instanceof Error ? error.message : "Erreur inconnue"}`,
+          message: "Impossible de transcrire le Reel",
         });
       }
     }),

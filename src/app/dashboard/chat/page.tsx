@@ -348,15 +348,14 @@ export default function ChatPage() {
             setMessage(messageText); // Remettre le message dans l'input
             return;
           }
-          // Pour les autres erreurs, afficher un message générique
-          alert(`Erreur lors de l'envoi du message : ${error.message}`);
-          // Retirer le message utilisateur des messages locaux
+          console.error("[Chat] Send message error:", error);
+          alert("Erreur lors de l'envoi du message. Veuillez réessayer.");
           setLocalMessages((prev) =>
             prev.filter(
               (m) => !(m.role === "user" && m.content === messageText),
             ),
           );
-          setMessage(messageText); // Remettre le message dans l'input
+          setMessage(messageText);
         },
       },
     );

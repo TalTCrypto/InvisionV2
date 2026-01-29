@@ -35,7 +35,8 @@ export default function SignInPage() {
       });
 
       if (result.error) {
-        setError(result.error.message ?? "Erreur de connexion");
+        console.error("[Auth] Sign in error:", result.error);
+        setError("Identifiants incorrects");
       } else {
         // Fetch le statut d'onboarding APRÈS la connexion réussie
         const onboardingStatus = await utils.onboarding.getStatus.fetch();

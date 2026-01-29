@@ -50,12 +50,11 @@ export const youtubeRouter = createTRPCRouter({
             segmentCount: 0,
           };
         }
+        console.error("[YouTube Router] Get video info error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            error instanceof Error
-              ? error.message
-              : "Erreur lors de la récupération des informations",
+            "Erreur lors de la récupération des informations de la vidéo",
         });
       }
     }),
