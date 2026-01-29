@@ -46,7 +46,6 @@ async function executeYtDlp(
   retryCount = 0,
   maxRetries = 3,
 ): Promise<{ stdout: string; stderr: string }> {
-  const browsers = ["chrome", "firefox", "edge", "safari"];
   const userAgents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -65,17 +64,6 @@ async function executeYtDlp(
     "--fragment-retries",
     "10",
   ];
-
-  if (retryCount === 0) {
-    for (const browser of browsers) {
-      try {
-        enhancedArgs.push("--cookies-from-browser", browser);
-        break;
-      } catch {
-        continue;
-      }
-    }
-  }
 
   return new Promise((resolve, reject) => {
     const ytdlp = spawn("yt-dlp", enhancedArgs, {
