@@ -25,6 +25,7 @@ import {
 import { api } from "~/trpc/react";
 import { getIntegrationIcon } from "~/app/onboarding/integrations/integration-icons";
 import { cn } from "~/lib/utils";
+import { ClarityIntegrationsTracking } from "~/components/clarity-integrations-tracking";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -166,6 +167,7 @@ export default function IntegrationsPage() {
 
   return (
     <div className="container mx-auto px-6 py-8">
+      <ClarityIntegrationsTracking />
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Intégrations</h1>

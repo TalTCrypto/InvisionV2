@@ -8,6 +8,7 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "~/components/ui/sidebar";
+import { ClarityUserTracking } from "~/components/clarity-user-tracking";
 
 export default async function DashboardLayout({
   children,
@@ -29,6 +30,7 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
+      <ClarityUserTracking />
       <AppSidebar />
       <SidebarInset>
         <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30 flex h-16 items-center gap-2 border-b px-4 backdrop-blur">

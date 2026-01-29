@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
+import { clarityEvent, clarityUpgrade } from "~/hooks/use-clarity";
 import {
   Instagram,
   Search,
@@ -236,6 +237,11 @@ export default function InstagramReelsAnalysisPage() {
     async (forceRefresh = false) => {
       if (!reelUrl.trim()) return;
 
+      clarityEvent("instagram_analysis_started");
+      if (forceRefresh) {
+        clarityEvent("instagram_analysis_force_refresh");
+      }
+
       setStep("fetching");
       setError(null);
       setMetadata(null);
@@ -309,6 +315,8 @@ export default function InstagramReelsAnalysisPage() {
               setAnalysis(data.parsedAnalysis);
               setStep("complete");
               eventSource.close();
+              clarityEvent("instagram_analysis_completed");
+              clarityUpgrade("completed_instagram_analysis");
             }
           },
         );
@@ -318,6 +326,7 @@ export default function InstagramReelsAnalysisPage() {
           setError(data.error ?? "Erreur lors de l'analyse");
           setStep("error");
           eventSource.close();
+          clarityEvent("instagram_analysis_error");
         });
 
         eventSource.onerror = () => {
