@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
       );
       return new Response(
         JSON.stringify({
-          error: `Impossible de transcrire ce Reel: ${transcriptError instanceof Error ? transcriptError.message : "Erreur inconnue"}`,
+          error: "Impossible de transcrire ce Reel",
         }),
         { status: 400, headers: { "Content-Type": "application/json" } },
       );
@@ -265,10 +265,7 @@ export async function GET(req: NextRequest) {
           console.error("[Instagram Analyze] Analysis error:", error);
           sendSSE(
             {
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Erreur lors de l'analyse",
+              error: "Erreur lors de l'analyse du Reel",
             },
             "error",
           );
@@ -295,10 +292,7 @@ export async function GET(req: NextRequest) {
     console.error("[Instagram Analyze] Route error:", error);
     return new Response(
       JSON.stringify({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Erreur serveur lors de l'analyse",
+        error: "Erreur lors de l'analyse",
       }),
       {
         status: 500,

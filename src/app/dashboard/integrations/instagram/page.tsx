@@ -255,7 +255,11 @@ export default function InstagramReelsAnalysisPage() {
         const transcriptResult = await getTranscript.refetch();
 
         if (transcriptResult.error) {
-          throw new Error(transcriptResult.error.message);
+          console.error(
+            "[Instagram] Transcript error:",
+            transcriptResult.error,
+          );
+          throw new Error("Erreur lors de la récupération du transcript");
         }
 
         if (!transcriptResult.data) {
@@ -323,7 +327,8 @@ export default function InstagramReelsAnalysisPage() {
 
         eventSource.addEventListener("error", (event: MessageEvent<string>) => {
           const data = JSON.parse(event.data ?? "{}") as { error?: string };
-          setError(data.error ?? "Erreur lors de l'analyse");
+          console.error("[Instagram] Analysis error:", data.error);
+          setError("Erreur lors de l'analyse du Reel");
           setStep("error");
           eventSource.close();
           clarityEvent("instagram_analysis_error");
@@ -336,7 +341,8 @@ export default function InstagramReelsAnalysisPage() {
           eventSource.close();
         };
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Erreur inconnue");
+        console.error("[Instagram] Analysis failed:", err);
+        setError("Impossible d'analyser ce Reel");
         setStep("error");
       }
     },

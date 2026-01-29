@@ -211,7 +211,7 @@ export async function GET(req: NextRequest) {
           console.error("LangChain analysis error:", error);
           sendSSE(
             {
-              error: error instanceof Error ? error.message : "Analysis failed",
+              error: "Erreur lors de l'analyse de la vidéo",
             },
             "error",
           );
@@ -231,7 +231,7 @@ export async function GET(req: NextRequest) {
     console.error("YouTube analyze endpoint error:", error);
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: "Erreur lors de l'analyse",
       }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );

@@ -355,7 +355,8 @@ export default function YouTubeAnalysisPage() {
         const transcriptResult = await getTranscript.refetch();
 
         if (transcriptResult.error) {
-          throw new Error(transcriptResult.error.message);
+          console.error("[YouTube] Transcript error:", transcriptResult.error);
+          throw new Error("Erreur lors de la récupération du transcript");
         }
 
         if (!transcriptResult.data) {
@@ -427,7 +428,8 @@ export default function YouTubeAnalysisPage() {
 
         eventSource.addEventListener("error", (event: MessageEvent<string>) => {
           const data = JSON.parse(event.data ?? "{}") as { error?: string };
-          setError(data.error ?? "Erreur lors de l'analyse");
+          console.error("[YouTube] Analysis error:", data.error);
+          setError("Erreur lors de l'analyse de la vidéo");
           setStep("error");
           eventSource.close();
           clarityEvent("youtube_analysis_error");
@@ -440,7 +442,8 @@ export default function YouTubeAnalysisPage() {
           eventSource.close();
         };
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Erreur inconnue");
+        console.error("[YouTube] Analysis failed:", err);
+        setError("Impossible d'analyser cette vidéo");
         setStep("error");
       }
     },
