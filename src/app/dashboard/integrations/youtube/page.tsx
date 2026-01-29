@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { clarityEvent, clarityUpgrade } from "~/hooks/use-clarity";
 import {
   Youtube,
   Search,
@@ -321,6 +322,11 @@ export default function YouTubeAnalysisPage() {
     async (forceRefresh = false) => {
       if (!videoUrl.trim()) return;
 
+      clarityEvent("youtube_analysis_started");
+      if (forceRefresh) {
+        clarityEvent("youtube_analysis_force_refresh");
+      }
+
       const videoId = extractVideoIdFromUrl(videoUrl);
 
       // Vérifier le cache sauf si on force le refresh
@@ -412,6 +418,9 @@ export default function YouTubeAnalysisPage() {
                   data.parsedAnalysis,
                 );
               }
+
+              clarityEvent("youtube_analysis_completed");
+              clarityUpgrade("completed_youtube_analysis");
             }
           },
         );
@@ -421,6 +430,7 @@ export default function YouTubeAnalysisPage() {
           setError(data.error ?? "Erreur lors de l'analyse");
           setStep("error");
           eventSource.close();
+          clarityEvent("youtube_analysis_error");
         });
 
         eventSource.onerror = () => {
