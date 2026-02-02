@@ -57,6 +57,9 @@ model User {
   // Relations Chat IA
   chatSessions ChatSession[] // Sessions de chat IA
 
+  // Relations Ressources
+  businessResources BusinessResource[] // Ressources business
+
   @@map("user")
 }
 
@@ -112,6 +115,9 @@ model Organization {
   // Relations Chat IA
   workflowOrganizations WorkflowOrganization[] // Assignations de workflows à l'organisation
   chatSessions          ChatSession[] // Sessions de chat IA de l'organisation
+
+  // Relations Ressources
+  businessResources BusinessResource[] // Ressources business de l'organisation
 
   @@index([slug])
   @@map("organization")
@@ -312,4 +318,32 @@ model InstagramAnalysis {
   @@index([userId])
   @@index([expiresAt])
   @@map("instagram_analysis")
+}
+
+model BusinessResource {
+  id             String @id @default(cuid())
+  userId         String
+  organizationId String
+
+  title    String
+  category String?
+  content  String  @db.Text
+
+  processingStatus String  @default("pending")
+  processingError  String?
+  chunks           String? @db.Text
+
+  metadata String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([category])
+  @@index([processingStatus])
+  @@map("business_resource")
 }

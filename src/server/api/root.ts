@@ -6,6 +6,7 @@ import { postRouter } from "~/server/api/routers/post";
 import { chatRouter } from "~/server/api/routers/chat";
 import { youtubeRouter } from "~/server/api/routers/youtube";
 import { instagramRouter } from "~/server/api/routers/instagram";
+import { resourcesRouter } from "~/server/api/routers/resources";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -22,6 +23,7 @@ export const appRouter = createTRPCRouter({
   chat: chatRouter,
   youtube: youtubeRouter,
   instagram: instagramRouter,
+  resources: resourcesRouter,
 });
 
 // export type definition of API

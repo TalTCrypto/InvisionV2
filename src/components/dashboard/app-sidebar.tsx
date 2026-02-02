@@ -3,7 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, MessageSquare, Plug, Users, Settings } from "lucide-react";
+import {
+  Home,
+  MessageSquare,
+  BookOpen,
+  Plug,
+  Users,
+  Settings,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -43,6 +50,7 @@ import { Label } from "~/components/ui/label";
 const navigation = [
   { name: "Accueil", href: "/dashboard", icon: Home },
   { name: "Chat IA", href: "/dashboard/chat", icon: MessageSquare },
+  { name: "Ressources", href: "/dashboard/ressources", icon: BookOpen },
   { name: "Intégrations", href: "/dashboard/integrations", icon: Plug },
   { name: "Organisation", href: "/dashboard/organization", icon: Users },
 ];
@@ -84,6 +92,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       void utils.integrations.getConnected.invalidate();
       void utils.integrations.getYouTubeMetrics.invalidate();
       void utils.integrations.getInstagramMetrics.invalidate();
+
+      // Invalider les queries des ressources qui dépendent de l'organisation
+      void utils.resources.list.invalidate();
+      void utils.resources.getCategories.invalidate();
 
       // Invalider les queries admin (au cas où elles dépendent de l'organisation)
       void utils.admin.listWorkflows.invalidate();
