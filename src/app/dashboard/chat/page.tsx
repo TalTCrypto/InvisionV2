@@ -287,7 +287,13 @@ export default function ChatPage() {
             currentEventType ||
             (typeof data.type === "string" ? data.type : "message");
 
-          if (eventType === "token") {
+          if (eventType === "clear") {
+            // Backend detected a tool call after tokens were already
+            // streamed (model emitted "Final Answer:" before Action).
+            // Discard the stale tokens.
+            assistantContent = "";
+            setStreaming((prev) => ({ ...prev, text: "" }));
+          } else if (eventType === "token") {
             const token = typeof data.token === "string" ? data.token : "";
             if (token) {
               assistantContent += token;

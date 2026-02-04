@@ -3,6 +3,7 @@ export type StreamEventType =
   | "tool"
   | "reasoning"
   | "message"
+  | "clear"
   | "error"
   | "end";
 
