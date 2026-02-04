@@ -83,9 +83,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       void utils.organization.getUserOrganizations.invalidate();
 
       // Invalider les queries du chat qui dépendent de l'organisation
-      void utils.chat.getWorkflows.invalidate();
-      void utils.chat.getSessions.invalidate();
-      void utils.chat.getSession.invalidate();
+      void utils.chatV2.getSessions.invalidate();
+      void utils.chatV2.getSession.invalidate();
 
       // Invalider les queries d'intégrations qui dépendent de l'organisation
       void utils.integrations.list.invalidate();
