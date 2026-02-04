@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Send,
   Plus,
   Trash2,
   MessageSquare,
   Loader2,
-  Sparkles,
   Bot,
   User,
+  Brain,
+  Lightbulb,
+  TrendingUp,
+  Zap,
+  ChevronDown,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -18,601 +22,365 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { AnimatedCard } from "~/components/ui/animated-card";
 import { BlurFade } from "~/components/ui/blur-fade";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import { api } from "~/trpc/react";
 import { cn } from "~/lib/utils";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "~/components/ui/alert-dialog";
-import { useRouter } from "next/navigation";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+
+type AgentType = "orchestrator" | "content" | "performance" | "strategy";
+
+interface AgentInfo {
+  type: AgentType;
+  name: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  placeholder: string;
+}
+
+const AGENTS: Record<AgentType, AgentInfo> = {
+  orchestrator: {
+    type: "orchestrator",
+    name: "Orchestrator",
+    description: "Agent polyvalent pour toutes vos questions",
+    icon: Brain,
+    color: "text-purple-500",
+    placeholder: "Posez n'importe quelle question...",
+  },
+  content: {
+    type: "content",
+    name: "Content Creator",
+    description: "Expert en création de contenu viral (hooks, scripts, CTAs)",
+    icon: Lightbulb,
+    color: "text-yellow-500",
+    placeholder: "Ex: Crée-moi 3 hooks pour un reel fitness...",
+  },
+  performance: {
+    type: "performance",
+    name: "Performance Analyst",
+    description: "Expert en analyse de métriques et optimisation",
+    icon: TrendingUp,
+    color: "text-blue-500",
+    placeholder: "Ex: Analyse mes stats Instagram...",
+  },
+  strategy: {
+    type: "strategy",
+    name: "Strategy Planner",
+    description: "Expert en stratégie de contenu et croissance",
+    icon: Zap,
+    color: "text-green-500",
+    placeholder: "Ex: Crée une stratégie pour passer de 2K à 10K followers...",
+  },
+};
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
+
+// Labels shown to non-technical users while a tool runs.
+// pending → while waiting | done → success | failed → error
 
 export default function ChatPage() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
     null,
   );
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(
-    null,
-  );
+  const [selectedAgent, setSelectedAgent] = useState<AgentType>("orchestrator");
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // Messages locaux pour l'affichage optimiste
-  const [localMessages, setLocalMessages] = useState<
-    Array<{
-      role: "user" | "assistant";
-      content: string;
-      timestamp: string;
-    }>
-  >([]);
 
-  const [streamingData, setStreamingData] = useState<{
+  const [streaming, setStreaming] = useState<{
+    active: boolean;
+    text: string;
+    userMessage: string | null;
     reasoning: Array<{ type: string; content: string }>;
     tools: Array<{
       name: string;
       input: Record<string, unknown> | null;
       output: unknown;
       duration?: number;
+      success?: boolean;
     }>;
-    currentText: string;
-    isStreaming: boolean;
-  }>({
-    reasoning: [],
-    tools: [],
-    currentText: "",
-    isStreaming: false,
-  });
+  }>({ active: false, text: "", userMessage: null, reasoning: [], tools: [] });
 
   const utils = api.useUtils();
-  const router = useRouter();
 
-  // Récupérer les intégrations connectées de l'utilisateur
-  const { data: connectedIntegrations } =
-    api.integrations.getConnected.useQuery();
-
-  // Récupérer la liste des intégrations disponibles pour obtenir les noms
-  const { data: availableIntegrations } = api.integrations.list.useQuery();
-
-  // État pour le dialog d'intégrations manquantes
-  const [missingIntegrationsDialog, setMissingIntegrationsDialog] = useState<{
-    open: boolean;
-    missingIntegrations: string[];
-  }>({ open: false, missingIntegrations: [] });
-
-  // Récupérer les workflows disponibles
-  const { data: workflows, isLoading: isLoadingWorkflows } =
-    api.chat.getWorkflows.useQuery();
-
-  // Récupérer les sessions
   const { data: sessions, isLoading: isLoadingSessions } =
-    api.chat.getSessions.useQuery();
+    api.chatV2.getSessions.useQuery();
 
-  // Récupérer la session sélectionnée
   const { data: currentSession, isLoading: isLoadingSession } =
-    api.chat.getSession.useQuery(
+    api.chatV2.getSession.useQuery(
       { sessionId: selectedSessionId ?? "" },
       { enabled: !!selectedSessionId },
     );
 
-  // Workflow sélectionné ou workflow de la session
-  const activeWorkflow = useMemo(() => {
-    if (selectedWorkflowId) {
-      return workflows?.find((w) => w.id === selectedWorkflowId);
-    }
-    if (currentSession?.workflowId) {
-      return workflows?.find((w) => w.workflowId === currentSession.workflowId);
-    }
-    return workflows?.[0]; // Workflow par défaut
-  }, [selectedWorkflowId, currentSession?.workflowId, workflows]);
-
-  // Mutations
-  const createSession = api.chat.createSession.useMutation({
+  const createSession = api.chatV2.createSession.useMutation({
     onSuccess: (newSession) => {
       setSelectedSessionId(newSession.id);
-      void utils.chat.getSessions.invalidate();
+      void utils.chatV2.getSessions.invalidate();
     },
   });
 
-  const sendMessage = api.chat.sendMessage.useMutation({
+  const deleteSession = api.chatV2.deleteSession.useMutation({
     onSuccess: () => {
-      // Le message utilisateur est maintenant sauvegardé en DB
-      // On rafraîchit la session mais on garde les messages locaux pour éviter qu'ils disparaissent
-      // pendant le rechargement
-      void utils.chat.getSession.invalidate({
-        sessionId: selectedSessionId ?? "",
-      });
-      void utils.chat.getSessions.invalidate();
-      inputRef.current?.focus();
-    },
-    onError: () => {
-      // En cas d'erreur, garder quand même le message local pour l'UX
-      console.error("Erreur lors de l'envoi du message");
+      if (selectedSessionId) setSelectedSessionId(null);
+      void utils.chatV2.getSessions.invalidate();
     },
   });
 
-  const deleteSession = api.chat.deleteSession.useMutation({
-    onSuccess: () => {
-      if (selectedSessionId) {
-        setSelectedSessionId(null);
-      }
-      void utils.chat.getSessions.invalidate();
-    },
-  });
-
-  // Combiner les messages de la session avec les messages locaux
-  // Important : ne pas perdre les messages locaux même si la session est en cours de rechargement
-  const displayMessages = useMemo(() => {
-    const sessionMessages = currentSession?.messages ?? [];
-
-    // Si on a des messages locaux, les combiner intelligemment avec les messages de la session
-    if (localMessages.length > 0) {
-      // Si la session est vide ou en cours de chargement, utiliser uniquement les messages locaux
-      if (sessionMessages.length === 0 || isLoadingSession) {
-        return localMessages;
-      }
-
-      // Créer un Set pour identifier rapidement les messages de session
-      // On utilise le contenu complet et le rôle pour une identification précise
-      const sessionMessageSet = new Set<string>();
-      for (const msg of sessionMessages) {
-        const key = `${msg.role}-${msg.content}`;
-        sessionMessageSet.add(key);
-      }
-
-      // Ajouter les messages locaux qui ne sont pas déjà dans la session
-      const uniqueLocalMessages = localMessages.filter((localMsg) => {
-        const key = `${localMsg.role}-${localMsg.content}`;
-        return !sessionMessageSet.has(key);
-      });
-
-      // Combiner tous les messages et trier par timestamp pour préserver l'ordre chronologique
-      const allMessages = [...sessionMessages, ...uniqueLocalMessages];
-      return allMessages.sort((a, b) => {
-        const timeA = new Date(a.timestamp).getTime();
-        const timeB = new Date(b.timestamp).getTime();
-        return timeA - timeB;
-      });
-    }
-
-    return sessionMessages;
-  }, [currentSession?.messages, localMessages, isLoadingSession]);
-
-  // Nettoyer les messages locaux quand ils sont tous présents dans la session
-  // Mais seulement si la session a au moins autant de messages que les messages locaux
   useEffect(() => {
-    if (localMessages.length === 0 || !currentSession?.messages) return;
-
-    const sessionMessages = currentSession.messages;
-
-    // Si la session a moins de messages que les messages locaux, ne pas nettoyer
-    // (la DB n'est peut-être pas encore à jour)
-    if (sessionMessages.length < localMessages.length) {
-      return;
-    }
-
-    const sessionMessageMap = new Map<string, boolean>();
-    for (const msg of sessionMessages) {
-      const key = `${msg.role}-${msg.content}`;
-      sessionMessageMap.set(key, true);
-    }
-
-    // Vérifier si tous les messages locaux sont dans la session
-    const allLocalInSession = localMessages.every((localMsg) => {
-      const key = `${localMsg.role}-${localMsg.content}`;
-      return sessionMessageMap.has(key);
+    setStreaming({
+      active: false,
+      text: "",
+      userMessage: null,
+      reasoning: [],
+      tools: [],
     });
+  }, [selectedSessionId]);
 
-    // Si tous les messages locaux sont dans la session ET que la session a au moins le même nombre de messages,
-    // on peut les nettoyer après un délai pour être sûr
-    if (
-      allLocalInSession &&
-      localMessages.length > 0 &&
-      sessionMessages.length >= localMessages.length
-    ) {
-      const timeoutId = setTimeout(() => {
-        setLocalMessages([]);
-      }, 2000); // Délai plus long pour être sûr que la DB est à jour
-      return () => clearTimeout(timeoutId);
-    }
-  }, [currentSession?.messages, localMessages]);
-
-  // Auto-scroll vers le bas quand de nouveaux messages arrivent
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [displayMessages, streamingData]);
-
-  // Sélectionner la première session au chargement
+  // Auto-select first session on mount
   useEffect(() => {
     if (sessions && sessions.length > 0 && !selectedSessionId) {
       setSelectedSessionId(sessions[0]?.id ?? null);
     }
   }, [sessions, selectedSessionId]);
 
-  // Focus sur l'input au chargement
+  const rawMessages: ChatMessage[] = currentSession?.messages ?? [];
+
+  // While the user-message overlay is visible, the server may have already
+  // persisted that same message (it does so before the first SSE event).
+  // Hide only the very last element when it matches exactly so the overlay
+  // and the DB copy don't coexist.  Older messages with identical text are
+  // never touched.
+  const displayMessages: ChatMessage[] = (() => {
+    if (!streaming.userMessage || (!streaming.active && !streaming.text))
+      return rawMessages;
+    const last = rawMessages[rawMessages.length - 1];
+    if (last?.role === "user" && last.content === streaming.userMessage)
+      return rawMessages.slice(0, -1);
+    return rawMessages;
+  })();
+
+  // Tail-checks: did the server already persist this round's messages?
+  // We only look at the last N messages so a previous exchange with the same
+  // text does not trigger a false positive.
+  const recentSlice = displayMessages.slice(-4);
+  const dbHasCurrentUser =
+    !!streaming.userMessage &&
+    recentSlice.some(
+      (m) => m.role === "user" && m.content === streaming.userMessage,
+    );
+  const dbHasCurrentAssistant =
+    !!streaming.text &&
+    recentSlice.some(
+      (m) => m.role === "assistant" && m.content === streaming.text,
+    );
+
+  // Once DB has the assistant response the frozen bubble can go.
   useEffect(() => {
-    if (selectedSessionId && !isLoadingSession) {
+    if (!streaming.text || streaming.active) return;
+    if (dbHasCurrentAssistant) {
+      setStreaming({
+        active: false,
+        text: "",
+        userMessage: null,
+        reasoning: [],
+        tools: [],
+      });
+    }
+  }, [
+    currentSession?.messages,
+    streaming.text,
+    streaming.active,
+    dbHasCurrentAssistant,
+  ]);
+
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [displayMessages, streaming]);
+
+  // Focus input when session is ready
+  useEffect(() => {
+    if (selectedSessionId && !isLoadingSession && !streaming.active) {
       inputRef.current?.focus();
     }
-  }, [selectedSessionId, isLoadingSession]);
+  }, [selectedSessionId, isLoadingSession, streaming.active]);
 
-  const handleSendMessage = async () => {
-    if (!message.trim() || !selectedSessionId) return;
+  const handleSendMessage = useCallback(async () => {
+    if (!message.trim() || !selectedSessionId || streaming.active) return;
 
     const messageText = message.trim();
-
-    // Vérifier les intégrations requises AVANT d'envoyer le message
-    if (!activeWorkflow) {
-      return;
-    }
-
-    const workflowRequiredIntegrations = (
-      activeWorkflow as { requiredIntegrations?: string[] | null }
-    )?.requiredIntegrations;
-
-    if (
-      workflowRequiredIntegrations &&
-      workflowRequiredIntegrations.length > 0
-    ) {
-      const normalizeSlug = (slug: string) =>
-        slug.toLowerCase().replace(/-/g, "");
-
-      const connectedSlugs = new Set(
-        (connectedIntegrations ?? []).map(normalizeSlug),
-      );
-
-      const missingIntegrations = workflowRequiredIntegrations.filter(
-        (requiredSlug: string) =>
-          !connectedSlugs.has(normalizeSlug(requiredSlug)),
-      );
-
-      if (missingIntegrations.length > 0) {
-        // Obtenir les noms des intégrations manquantes
-        const missingIntegrationNames = missingIntegrations.map(
-          (slug: string) => {
-            const integration = availableIntegrations?.find(
-              (int) => normalizeSlug(int.slug) === normalizeSlug(slug),
-            );
-            return integration?.name ?? slug;
-          },
-        );
-
-        // Afficher le dialog avec les intégrations manquantes
-        setMissingIntegrationsDialog({
-          open: true,
-          missingIntegrations: missingIntegrationNames,
-        });
-        return; // Ne pas envoyer le message
-      }
-    }
-
     setMessage("");
 
-    // AFFICHER LE MESSAGE UTILISATEUR IMMÉDIATEMENT (optimistic update)
-    const userMessage = {
-      role: "user" as const,
-      content: messageText,
-      timestamp: new Date().toISOString(),
-    };
-
-    // Ajouter le nouveau message utilisateur aux messages locaux existants
-    // IMPORTANT : On garde TOUS les messages précédents pour éviter qu'ils disparaissent
-    setLocalMessages((prev) => {
-      // Vérifier si ce message n'existe pas déjà
-      const exists = prev.some(
-        (m) => m.role === "user" && m.content === messageText,
-      );
-      if (exists) return prev;
-      // Ajouter le nouveau message à la fin
-      return [...prev, userMessage];
-    });
-
-    // Sauvegarder le message utilisateur via tRPC (en arrière-plan)
-    sendMessage.mutate(
-      {
-        sessionId: selectedSessionId,
-        message: messageText,
-      },
-      {
-        onError: (error) => {
-          // Si l'erreur concerne les intégrations manquantes
-          if (error.data?.code === "PRECONDITION_FAILED") {
-            // Extraire les intégrations manquantes du message d'erreur
-            const errorMessage = error.message ?? "";
-            const missingIntegrationsMatch =
-              /Les intégrations suivantes doivent être connectées : (.+)/.exec(
-                errorMessage,
-              );
-            const missingIntegrations = missingIntegrationsMatch
-              ? (missingIntegrationsMatch[1]?.split(", ") ?? [])
-              : [];
-            alert(
-              `Les intégrations suivantes doivent être connectées avant d'utiliser ce workflow :\n\n${missingIntegrations.join("\n")}\n\nVeuillez les connecter dans la page Intégrations.`,
-            );
-            // Retirer le message utilisateur des messages locaux car l'envoi a échoué
-            setLocalMessages((prev) =>
-              prev.filter(
-                (m) => !(m.role === "user" && m.content === messageText),
-              ),
-            );
-            setMessage(messageText); // Remettre le message dans l'input
-            return;
-          }
-          console.error("[Chat] Send message error:", error);
-          alert("Erreur lors de l'envoi du message. Veuillez réessayer.");
-          setLocalMessages((prev) =>
-            prev.filter(
-              (m) => !(m.role === "user" && m.content === messageText),
-            ),
-          );
-          setMessage(messageText);
-        },
-      },
-    );
-
-    // Réinitialiser le streaming
-    setStreamingData({
+    setStreaming({
+      active: true,
+      text: "",
+      userMessage: messageText,
       reasoning: [],
       tools: [],
-      currentText: "",
-      isStreaming: true,
     });
 
-    // Créer la connexion SSE avec fetch
-    const response = await fetch(
-      `/api/chat/stream?sessionId=${selectedSessionId}&message=${encodeURIComponent(messageText)}`,
-    );
+    let assistantContent = "";
 
-    if (!response.body) {
-      console.error("Pas de body dans la réponse SSE");
-      setStreamingData((prev) => ({ ...prev, isStreaming: false }));
-      return;
-    }
+    try {
+      const response = await fetch(
+        `/api/chat/v2/stream?sessionId=${selectedSessionId}&message=${encodeURIComponent(messageText)}&agent=${selectedAgent}`,
+      );
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+      if (!response.body) {
+        setStreaming((prev) => ({ ...prev, active: false }));
+        return;
+      }
 
-    const processStream = async () => {
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+      // Server persists the user message before starting the LLM call,
+      // so it's already in DB by the time headers arrive. Refetch now to
+      // swap the optimistic copy for the real DB row seamlessly.
+      void utils.chatV2.getSession.invalidate({ sessionId: selectedSessionId });
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let currentEventType = "";
+      let endReceived = false;
 
-          let currentEventType = "message";
-          for (const line of lines) {
-            if (!line.trim()) continue;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-            if (line.startsWith("event: ")) {
-              currentEventType = line.slice(7).trim();
-              continue;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) {
+            currentEventType = "";
+            continue;
+          }
+
+          if (line.startsWith("event: ")) {
+            currentEventType = line.slice(7).trim();
+            continue;
+          }
+
+          if (!line.startsWith("data: ")) continue;
+
+          const dataStr = line.slice(6).trim();
+          if (!dataStr) continue;
+
+          let data: Record<string, unknown>;
+          try {
+            data = JSON.parse(dataStr) as Record<string, unknown>;
+          } catch {
+            continue;
+          }
+
+          const eventType =
+            currentEventType ||
+            (typeof data.type === "string" ? data.type : "message");
+
+          if (eventType === "token") {
+            const token = typeof data.token === "string" ? data.token : "";
+            if (token) {
+              assistantContent += token;
+              setStreaming((prev) => ({ ...prev, text: prev.text + token }));
             }
+          } else if (eventType === "tool") {
+            const action = typeof data.action === "string" ? data.action : "";
+            const thought =
+              typeof data.thought === "string" ? data.thought : "";
 
-            if (line.startsWith("data: ")) {
-              const dataStr = line.slice(6).trim();
-              if (!dataStr) continue;
-
-              try {
-                const data = JSON.parse(dataStr) as Record<string, unknown>;
-                const eventType =
-                  currentEventType ??
-                  (typeof data.type === "string" ? data.type : null) ??
-                  "message";
-
-                // Debug: logger les événements importants (seulement pour les événements non-token ou tokens importants)
-                if (eventType !== "token") {
-                  console.log(`[SSE] Event: ${eventType}`, data);
-                }
-
-                if (eventType === "token") {
-                  const fullText =
-                    typeof data.fullText === "string"
-                      ? data.fullText
-                      : undefined;
-                  const chunk =
-                    typeof data.chunk === "string" ? data.chunk : undefined;
-                  if (fullText || chunk) {
-                    setStreamingData((prev) => ({
-                      ...prev,
-                      currentText: fullText ?? prev.currentText + (chunk ?? ""),
-                    }));
-                  }
-                } else if (eventType === "reasoning") {
-                  const content =
-                    typeof data.content === "string" ? data.content : "";
-                  if (content) {
-                    setStreamingData((prev) => ({
-                      ...prev,
-                      reasoning: [
-                        ...prev.reasoning,
-                        { type: "reasoning", content },
-                      ],
-                    }));
-                  }
-                } else if (eventType === "tool") {
-                  const name = typeof data.name === "string" ? data.name : "";
-                  const duration =
-                    typeof data.duration === "number"
-                      ? data.duration
-                      : undefined;
-                  if (name) {
-                    setStreamingData((prev) => ({
-                      ...prev,
-                      tools: [
-                        ...prev.tools,
-                        {
-                          name,
-                          input:
-                            data.input &&
-                            typeof data.input === "object" &&
-                            !Array.isArray(data.input)
-                              ? (data.input as Record<string, unknown>)
-                              : null,
-                          output: data.output,
-                          duration,
-                        },
-                      ],
-                    }));
-                  }
-                } else if (eventType === "message") {
-                  const complete =
-                    typeof data.complete === "boolean" ? data.complete : false;
-                  const text =
-                    typeof data.text === "string" ? data.text : undefined;
-
-                  if (text && complete) {
-                    // Message final reçu, mettre à jour les messages locaux
-                    setLocalMessages((prev) => {
-                      // Garder le message utilisateur et ajouter/mettre à jour le message assistant
-                      const userMessages = prev.filter(
-                        (m) => m.role === "user",
-                      );
-                      const hasAssistant = prev.some(
-                        (m) => m.role === "assistant",
-                      );
-
-                      if (!hasAssistant) {
-                        return [
-                          ...userMessages,
-                          {
-                            role: "assistant",
-                            content: text,
-                            timestamp: new Date().toISOString(),
-                          },
-                        ];
+            if (action && data.input !== undefined) {
+              setStreaming((prev) => ({
+                ...prev,
+                reasoning: thought
+                  ? [...prev.reasoning, { type: "thought", content: thought }]
+                  : prev.reasoning,
+                tools: [
+                  ...prev.tools,
+                  {
+                    name: action,
+                    input:
+                      data.input &&
+                      typeof data.input === "object" &&
+                      !Array.isArray(data.input)
+                        ? (data.input as Record<string, unknown>)
+                        : null,
+                    output: null,
+                  },
+                ],
+              }));
+            } else if (data.output !== undefined) {
+              setStreaming((prev) => ({
+                ...prev,
+                tools: prev.tools.map((tool, idx) =>
+                  idx === prev.tools.length - 1
+                    ? {
+                        ...tool,
+                        output: data.output,
+                        success:
+                          typeof data.success === "boolean"
+                            ? data.success
+                            : true,
+                        duration:
+                          typeof data.duration === "number"
+                            ? data.duration
+                            : undefined,
                       }
-                      // Mettre à jour le contenu du message assistant et garder les messages utilisateur
-                      return [
-                        ...userMessages,
-                        ...prev
-                          .filter((m) => m.role === "assistant")
-                          .map((m) => ({
-                            ...m,
-                            content: text,
-                          })),
-                      ];
-                    });
-                    setStreamingData((prev) => ({
-                      ...prev,
-                      isStreaming: false,
-                      currentText: text,
-                    }));
-
-                    // Rafraîchir la session pour récupérer les messages de la DB
-                    // On garde les messages locaux - ils seront automatiquement filtrés par displayMessages
-                    // si ils sont déjà dans la session
-                    void utils.chat.getSession.invalidate({
-                      sessionId: selectedSessionId ?? "",
-                    });
-                    void utils.chat.getSessions.invalidate();
-
-                    // NE PAS nettoyer localMessages automatiquement
-                    // Ils seront filtrés par displayMessages si déjà présents dans la session
-                    // On les nettoie seulement quand on envoie un nouveau message
-                  } else if (text) {
-                    // Mise à jour du texte en cours
-                    setStreamingData((prev) => ({
-                      ...prev,
-                      currentText: text,
-                    }));
-                  }
-                } else if (eventType === "end") {
-                  // Finaliser avec le texte actuel si disponible
-                  setStreamingData((prev) => {
-                    const finalText = prev.currentText;
-                    if (finalText) {
-                      // Utiliser setTimeout pour éviter les problèmes de closure
-                      setTimeout(() => {
-                        setLocalMessages((localPrev) => {
-                          // Garder les messages utilisateur
-                          const userMessages = localPrev.filter(
-                            (m) => m.role === "user",
-                          );
-                          const hasAssistant = localPrev.some(
-                            (m) => m.role === "assistant",
-                          );
-
-                          if (!hasAssistant) {
-                            return [
-                              ...userMessages,
-                              {
-                                role: "assistant",
-                                content: finalText,
-                                timestamp: new Date().toISOString(),
-                              },
-                            ];
-                          }
-                          // Mettre à jour le contenu du message assistant
-                          return [
-                            ...userMessages,
-                            ...localPrev
-                              .filter((m) => m.role === "assistant")
-                              .map((m) => ({
-                                ...m,
-                                content: finalText,
-                              })),
-                          ];
-                        });
-                      }, 0);
-                    }
-                    return { ...prev, isStreaming: false };
-                  });
-
-                  // Rafraîchir la session
-                  void utils.chat.getSession.invalidate({
-                    sessionId: selectedSessionId ?? "",
-                  });
-                  void utils.chat.getSessions.invalidate();
-
-                  // NE PAS nettoyer localMessages automatiquement
-                  // Ils seront filtrés par displayMessages si déjà présents dans la session
-                } else if (eventType === "error") {
-                  console.error("Erreur SSE:", data);
-                  setStreamingData((prev) => ({ ...prev, isStreaming: false }));
-                }
-              } catch (parseError) {
-                console.error("Erreur parsing SSE:", parseError);
-              }
+                    : tool,
+                ),
+              }));
             }
+          } else if (eventType === "message") {
+            // "message" event carries the final content — capture it but don't
+            // add to optimistic list yet; wait for "end" to do that once.
+            const content =
+              typeof data.content === "string" ? data.content : "";
+            if (content) {
+              assistantContent = content;
+              setStreaming((prev) => ({ ...prev, text: content }));
+            }
+          } else if (eventType === "end") {
+            endReceived = true;
+            // Freeze the bubble in place (active → false keeps text visible).
+            // A useEffect will clear it once the DB refetch delivers the message.
+            setStreaming((prev) => ({ ...prev, active: false }));
+
+            void utils.chatV2.getSession.invalidate({
+              sessionId: selectedSessionId,
+            });
+            void utils.chatV2.getSessions.invalidate();
           }
         }
-      } catch (error) {
-        console.error("Erreur dans le stream:", error);
-        setStreamingData((prev) => ({ ...prev, isStreaming: false }));
       }
-    };
 
-    void processStream().catch((error) => {
-      console.error("Erreur dans processStream:", error);
-      setStreamingData((prev) => ({ ...prev, isStreaming: false }));
-    });
-  };
-
-  const handleCreateSession = () => {
-    createSession.mutate({
-      workflowId: activeWorkflow?.id,
-    });
-  };
-
-  const handleDeleteSession = (sessionId: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette conversation ?")) {
-      deleteSession.mutate({ sessionId });
+      // Safety: if stream ended without an explicit "end" event
+      if (!endReceived && assistantContent) {
+        setStreaming((prev) => ({ ...prev, active: false }));
+        void utils.chatV2.getSession.invalidate({
+          sessionId: selectedSessionId,
+        });
+        void utils.chatV2.getSessions.invalidate();
+      }
+    } catch (error) {
+      console.error("Stream error:", error);
+      setStreaming({
+        active: false,
+        text: "",
+        userMessage: null,
+        reasoning: [],
+        tools: [],
+      });
     }
-  };
+  }, [message, selectedSessionId, selectedAgent, streaming.active, utils]);
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -621,93 +389,72 @@ export default function ChatPage() {
     }
   };
 
-  const updateSession = api.chat.updateSession.useMutation({
-    onSuccess: () => {
-      void utils.chat.getSession.invalidate({
-        sessionId: selectedSessionId ?? "",
-      });
-      void utils.chat.getSessions.invalidate();
-    },
-  });
-
-  const handleWorkflowChange = (workflowId: string) => {
-    setSelectedWorkflowId(workflowId);
-
-    // Si une session est sélectionnée, vérifier si elle est vide
-    if (selectedSessionId && currentSession) {
-      const isSessionEmpty = currentSession.messages.length === 0;
-
-      if (isSessionEmpty) {
-        // Mettre à jour la session existante au lieu d'en créer une nouvelle
-        updateSession.mutate({
-          sessionId: selectedSessionId,
-          workflowId,
-        });
-      } else {
-        // Créer une nouvelle session si la session actuelle contient des messages
-        createSession.mutate({ workflowId });
-      }
-    } else if (!selectedSessionId) {
-      // Pas de session sélectionnée, créer une nouvelle session
-      createSession.mutate({ workflowId });
-    }
-  };
+  const currentAgentInfo = AGENTS[selectedAgent];
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-4 overflow-hidden">
-      {/* Sidebar - Liste des sessions */}
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+      {/* Sidebar */}
       <BlurFade
         delay={0.1}
         className="border-border bg-muted/30 w-80 flex-shrink-0 border-r backdrop-blur-sm"
       >
         <div className="flex h-full flex-col">
-          {/* Header avec sélection de workflow */}
           <div className="border-border space-y-3 border-b p-4">
             <Button
-              onClick={handleCreateSession}
+              onClick={() => createSession.mutate({})}
               className="w-full"
-              disabled={createSession.isPending || isLoadingWorkflows}
+              disabled={createSession.isPending}
             >
               <Plus className="mr-2 size-4" />
               Nouvelle conversation
             </Button>
 
-            {/* Sélecteur de workflow */}
-            {workflows && workflows.length > 0 && (
-              <div className="space-y-2">
-                <label className="text-muted-foreground text-xs font-medium">
-                  Workflow IA
-                </label>
-                <Select
-                  value={activeWorkflow?.id ?? ""}
-                  onValueChange={handleWorkflowChange}
-                >
-                  <SelectTrigger className="w-full">
+            {/* Agent selector */}
+            <div className="space-y-2">
+              <label className="text-muted-foreground text-xs font-medium">
+                Agent Spécialisé
+              </label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="text-primary size-4" />
-                      <SelectValue placeholder="Sélectionner un workflow" />
+                      <currentAgentInfo.icon
+                        className={cn("size-4", currentAgentInfo.color)}
+                      />
+                      <span className="text-sm">{currentAgentInfo.name}</span>
                     </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workflows.map((workflow) => (
-                      <SelectItem key={workflow.id} value={workflow.id}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{workflow.name}</span>
-                          {workflow.description && (
-                            <span className="text-muted-foreground text-xs">
-                              {workflow.description}
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                    <ChevronDown className="size-4 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-80">
+                  <DropdownMenuLabel>Sélectionner un agent</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {Object.values(AGENTS).map((agent) => (
+                    <DropdownMenuItem
+                      key={agent.type}
+                      onClick={() => setSelectedAgent(agent.type)}
+                      className="flex flex-col items-start gap-1 p-3"
+                    >
+                      <div className="flex w-full items-center gap-2">
+                        <agent.icon className={cn("size-4", agent.color)} />
+                        <span className="font-medium">{agent.name}</span>
+                        {selectedAgent === agent.type && (
+                          <span className="text-primary ml-auto text-xs">
+                            ✓
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        {agent.description}
+                      </p>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
-          {/* Liste des sessions */}
+          {/* Session list */}
           <div className="flex-1 overflow-y-auto p-2">
             {isLoadingSessions ? (
               <div className="flex items-center justify-center py-8">
@@ -742,7 +489,7 @@ export default function ChatPage() {
                           className="hover:bg-destructive/10 hover:text-destructive size-6 opacity-0 transition-opacity group-hover:opacity-100"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteSession(session.id);
+                            deleteSession.mutate({ sessionId: session.id });
                           }}
                         >
                           <Trash2 className="size-3.5" />
@@ -767,43 +514,45 @@ export default function ChatPage() {
         </div>
       </BlurFade>
 
-      {/* Zone de chat principale */}
+      {/* Main chat */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {selectedSessionId ? (
           <>
-            {/* Header avec info du workflow */}
-            {activeWorkflow && (
-              <div className="border-border bg-muted/30 border-b py-3 pr-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 flex items-center gap-2 rounded-r-lg py-1.5 pr-3 pl-0">
-                      <Sparkles className="text-primary ml-3 size-4" />
-                      <span className="text-sm font-medium">
-                        {activeWorkflow.name}
-                      </span>
-                    </div>
-                    {activeWorkflow.description && (
-                      <span className="text-muted-foreground text-xs">
-                        {activeWorkflow.description}
-                      </span>
-                    )}
-                  </div>
+            {/* Header */}
+            <div className="border-border bg-muted/30 border-b py-3 pr-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-primary/10 flex items-center gap-2 rounded-r-lg py-1.5 pr-3 pl-0">
+                  <currentAgentInfo.icon
+                    className={cn("ml-3 size-4", currentAgentInfo.color)}
+                  />
+                  <span className="text-sm font-medium">
+                    {currentAgentInfo.name}
+                  </span>
                 </div>
+                <span className="text-muted-foreground text-xs">
+                  {currentAgentInfo.description}
+                </span>
               </div>
-            )}
+            </div>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6">
-              {isLoadingSession ? (
+              {isLoadingSession &&
+              !streaming.active &&
+              !streaming.text &&
+              !streaming.userMessage ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="text-muted-foreground size-6 animate-spin" />
                 </div>
-              ) : displayMessages.length > 0 || streamingData.isStreaming ? (
+              ) : displayMessages.length > 0 ||
+                streaming.active ||
+                streaming.text ||
+                streaming.userMessage ? (
                 <div className="mx-auto max-w-3xl space-y-6">
                   {displayMessages.map((msg, index) => (
                     <BlurFade
-                      key={index}
-                      delay={index * 0.05}
+                      key={`${msg.role}-${index}`}
+                      delay={index * 0.03}
                       className={cn(
                         "flex gap-4",
                         msg.role === "user" ? "justify-end" : "justify-start",
@@ -841,16 +590,34 @@ export default function ChatPage() {
                       )}
                     </BlurFade>
                   ))}
-                  {streamingData.isStreaming && (
+
+                  {/* Pending user message — shown until the DB copy arrives */}
+                  {streaming.userMessage &&
+                    !dbHasCurrentUser &&
+                    (streaming.active || !!streaming.text) && (
+                      <div className="flex justify-end gap-4">
+                        <AnimatedCard className="bg-primary text-primary-foreground ml-auto max-w-[85%] rounded-2xl px-5 py-4 shadow-sm">
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                            {streaming.userMessage}
+                          </p>
+                        </AnimatedCard>
+                        <div className="bg-primary/10 flex size-8 shrink-0 items-center justify-center rounded-full">
+                          <User className="text-primary size-4" />
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Streaming bubble — active while running, frozen until DB has the response */}
+                  {(streaming.active ||
+                    (!!streaming.text && !dbHasCurrentAssistant)) && (
                     <BlurFade className="flex justify-start gap-4">
                       <div className="bg-primary/10 flex size-8 shrink-0 items-center justify-center rounded-full">
                         <Bot className="text-primary size-4" />
                       </div>
                       <AnimatedCard className="bg-muted max-w-[85%] rounded-2xl px-5 py-4 shadow-sm">
-                        {/* Raisonnement */}
-                        {streamingData.reasoning.length > 0 && (
+                        {streaming.reasoning.length > 0 && (
                           <div className="border-border/50 mb-4 space-y-2 border-b pb-4">
-                            {streamingData.reasoning.map((reasoning, idx) => (
+                            {streaming.reasoning.map((r, idx) => (
                               <div
                                 key={idx}
                                 className="text-muted-foreground bg-muted/50 rounded-lg p-3 text-xs"
@@ -859,62 +626,114 @@ export default function ChatPage() {
                                   💭 Raisonnement
                                 </div>
                                 <div className="whitespace-pre-wrap">
-                                  {reasoning.content}
+                                  {r.content}
                                 </div>
                               </div>
                             ))}
                           </div>
                         )}
 
-                        {/* Outils utilisés */}
-                        {streamingData.tools.length > 0 && (
+                        {streaming.tools.length > 0 && (
                           <div className="border-border/50 mb-4 space-y-2 border-b pb-4">
-                            {streamingData.tools.map((tool, idx) => (
+                            {streaming.tools.map((tool, idx) => (
                               <div
                                 key={idx}
-                                className="text-muted-foreground bg-muted/50 rounded-lg p-3 text-xs"
+                                className="bg-muted/50 border-border/30 rounded-lg border p-3 text-xs"
                               >
-                                <div className="mb-1 font-medium">
-                                  🔧 {tool.name}
-                                  {tool.duration && ` (${tool.duration}ms)`}
+                                {/* Header: status dot + name + duration */}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2 font-medium">
+                                    <span
+                                      className={cn(
+                                        "size-2 rounded-full",
+                                        tool.output === null
+                                          ? "animate-pulse bg-amber-400"
+                                          : tool.success === false
+                                            ? "bg-red-500"
+                                            : "bg-emerald-500",
+                                      )}
+                                    />
+                                    <span className="text-muted-foreground">
+                                      🔧
+                                    </span>
+                                    <span className="text-foreground">
+                                      {tool.name}
+                                    </span>
+                                  </div>
+                                  {tool.duration && (
+                                    <span className="text-muted-foreground font-normal">
+                                      {tool.duration}ms
+                                    </span>
+                                  )}
                                 </div>
+
+                                {/* Input — collapsible, closed by default */}
                                 {tool.input && (
-                                  <div className="mt-1">
-                                    <span className="font-medium">Input:</span>{" "}
-                                    <pre className="mt-1 text-xs">
+                                  <details className="mt-2">
+                                    <summary className="text-muted-foreground hover:text-foreground cursor-pointer font-medium select-none">
+                                      ▸ Input
+                                    </summary>
+                                    <pre className="text-muted-foreground mt-1 whitespace-pre-wrap">
                                       {JSON.stringify(tool.input, null, 2)}
                                     </pre>
-                                  </div>
+                                  </details>
+                                )}
+
+                                {/* Output — open by default, green on success / red on error */}
+                                {tool.output !== null && (
+                                  <details className="mt-2" open>
+                                    <summary
+                                      className={cn(
+                                        "cursor-pointer font-medium select-none",
+                                        tool.success === false
+                                          ? "text-red-500"
+                                          : "text-emerald-600 dark:text-emerald-400",
+                                      )}
+                                    >
+                                      {tool.success === false
+                                        ? "▾ Erreur"
+                                        : "▾ Output"}
+                                    </summary>
+                                    <pre
+                                      className={cn(
+                                        "mt-1 whitespace-pre-wrap",
+                                        tool.success === false
+                                          ? "text-red-400"
+                                          : "text-muted-foreground",
+                                      )}
+                                    >
+                                      {typeof tool.output === "string"
+                                        ? tool.output
+                                        : JSON.stringify(tool.output, null, 2)}
+                                    </pre>
+                                  </details>
                                 )}
                               </div>
                             ))}
                           </div>
                         )}
 
-                        {/* Texte en cours de génération avec rendu markdown en temps réel */}
-                        {streamingData.currentText && (
+                        {streaming.text ? (
                           <div className="markdown-content relative text-sm leading-relaxed">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {streamingData.currentText}
+                              {streaming.text}
                             </ReactMarkdown>
-                            {streamingData.isStreaming && (
+                            {streaming.active && (
                               <span className="bg-primary ml-1 inline-block h-4 w-0.5 animate-pulse align-middle" />
                             )}
                           </div>
-                        )}
-
-                        {/* Indicateur de chargement si pas encore de texte */}
-                        {!streamingData.currentText && (
+                        ) : streaming.active ? (
                           <div className="flex items-center gap-3">
                             <Loader2 className="text-muted-foreground size-4 animate-spin" />
                             <span className="text-muted-foreground text-sm">
-                              L{"'"}IA réfléchit...
+                              {currentAgentInfo.name} réfléchit...
                             </span>
                           </div>
-                        )}
+                        ) : null}
                       </AnimatedCard>
                     </BlurFade>
                   )}
+
                   <div ref={messagesEndRef} />
                 </div>
               ) : (
@@ -922,38 +741,34 @@ export default function ChatPage() {
                   <BlurFade className="max-w-md text-center">
                     <div className="mb-6 flex justify-center">
                       <div className="bg-primary/10 flex size-16 items-center justify-center rounded-full">
-                        <Sparkles className="text-primary size-8" />
+                        <currentAgentInfo.icon
+                          className={cn("size-8", currentAgentInfo.color)}
+                        />
                       </div>
                     </div>
                     <h3 className="mb-2 text-xl font-semibold">
                       Commencez la conversation
                     </h3>
                     <p className="text-muted-foreground mb-6 text-sm">
-                      {activeWorkflow
-                        ? `Posez une question à ${activeWorkflow.name} pour commencer`
-                        : "Envoyez un message pour commencer à discuter avec l'IA"}
+                      {currentAgentInfo.description}
                     </p>
-                    {activeWorkflow && (
-                      <div className="bg-muted/50 rounded-lg border p-4 text-left">
-                        <p className="text-muted-foreground mb-2 text-xs font-medium">
-                          Workflow actif
-                        </p>
-                        <p className="text-sm font-medium">
-                          {activeWorkflow.name}
-                        </p>
-                        {activeWorkflow.description && (
-                          <p className="text-muted-foreground mt-1 text-xs">
-                            {activeWorkflow.description}
-                          </p>
-                        )}
-                      </div>
-                    )}
+                    <div className="bg-muted/50 rounded-lg border p-4 text-left">
+                      <p className="text-muted-foreground mb-2 text-xs font-medium">
+                        Agent actif
+                      </p>
+                      <p className="text-sm font-medium">
+                        {currentAgentInfo.name}
+                      </p>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {currentAgentInfo.description}
+                      </p>
+                    </div>
                   </BlurFade>
                 </div>
               )}
             </div>
 
-            {/* Input avec design moderne */}
+            {/* Input */}
             <div className="border-border bg-background/80 border-t backdrop-blur-sm">
               <div className="mx-auto max-w-3xl p-4">
                 <div className="border-border bg-background focus-within:border-primary focus-within:ring-primary/20 relative flex items-end gap-3 rounded-2xl border p-2 shadow-sm transition-all focus-within:ring-2">
@@ -962,36 +777,23 @@ export default function ChatPage() {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder={
-                      activeWorkflow
-                        ? `Posez une question à ${activeWorkflow.name}...`
-                        : "Tapez votre message..."
-                    }
-                    disabled={sendMessage.isPending || !activeWorkflow}
+                    placeholder={currentAgentInfo.placeholder}
+                    disabled={streaming.active}
                     className="flex-1 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                   <Button
-                    onClick={handleSendMessage}
-                    disabled={
-                      !message.trim() ||
-                      sendMessage.isPending ||
-                      !activeWorkflow
-                    }
+                    onClick={() => void handleSendMessage()}
+                    disabled={!message.trim() || streaming.active}
                     size="icon"
                     className="shrink-0 rounded-xl"
                   >
-                    {sendMessage.isPending ? (
+                    {streaming.active ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
                       <Send className="size-4" />
                     )}
                   </Button>
                 </div>
-                {!activeWorkflow && (
-                  <p className="text-muted-foreground mt-2 text-center text-xs">
-                    Sélectionnez un workflow pour commencer
-                  </p>
-                )}
               </div>
             </div>
           </>
@@ -1008,9 +810,8 @@ export default function ChatPage() {
               </h3>
               <p className="text-muted-foreground mb-6 text-sm">
                 Choisissez une conversation existante ou créez-en une nouvelle
-                pour commencer à discuter avec l{"'"}IA
               </p>
-              <Button onClick={handleCreateSession} size="lg">
+              <Button onClick={() => createSession.mutate({})} size="lg">
                 <Plus className="mr-2 size-4" />
                 Nouvelle conversation
               </Button>
@@ -1018,59 +819,6 @@ export default function ChatPage() {
           </div>
         )}
       </div>
-
-      {/* Dialog pour les intégrations manquantes */}
-      <AlertDialog
-        open={missingIntegrationsDialog.open}
-        onOpenChange={(open) =>
-          setMissingIntegrationsDialog({ ...missingIntegrationsDialog, open })
-        }
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Intégrations requises</AlertDialogTitle>
-            <AlertDialogDescription>
-              Les intégrations suivantes doivent être connectées avant d{"'"}
-              utiliser ce workflow :
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="my-4">
-            <ul className="list-inside list-disc space-y-2">
-              {missingIntegrationsDialog.missingIntegrations.map(
-                (integration, index) => (
-                  <li key={index} className="text-sm">
-                    {integration}
-                  </li>
-                ),
-              )}
-            </ul>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogAction
-              onClick={() => {
-                setMissingIntegrationsDialog({
-                  open: false,
-                  missingIntegrations: [],
-                });
-                router.push("/dashboard/integrations");
-              }}
-            >
-              Aller aux intégrations
-            </AlertDialogAction>
-            <Button
-              variant="outline"
-              onClick={() =>
-                setMissingIntegrationsDialog({
-                  open: false,
-                  missingIntegrations: [],
-                })
-              }
-            >
-              Fermer
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
