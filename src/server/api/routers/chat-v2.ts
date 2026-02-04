@@ -7,7 +7,7 @@ import { InstagramReelAnalyzer } from "~/server/utils/instagram-analyzer";
 import { YouTubeAnalyzer } from "~/server/utils/youtube-analyzer";
 import { getComposioClient } from "~/server/utils/composio";
 import { env } from "~/env";
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "../../../../generated/prisma";
 
 async function getActiveOrganizationId(
   db: PrismaClient,
@@ -54,11 +54,14 @@ export const chatV2Router = createTRPCRouter({
       });
 
       if (!chatSession) {
-        throw new Error("Session not found");
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Session non trouvée",
+        });
       }
 
       if (chatSession.userId !== ctx.session.user.id) {
-        throw new Error("Forbidden");
+        throw new TRPCError({ code: "FORBIDDEN", message: "Accès interdit" });
       }
 
       const organizationId =
@@ -66,7 +69,10 @@ export const chatV2Router = createTRPCRouter({
         (await getActiveOrganizationId(ctx.db, ctx.session.user.id));
 
       if (!organizationId) {
-        throw new Error("No organization found");
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Aucune organisation trouvée",
+        });
       }
 
       const factory = new AgentFactory({
@@ -109,7 +115,10 @@ export const chatV2Router = createTRPCRouter({
       );
 
       if (!organizationId) {
-        throw new Error("No organization found");
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Aucune organisation trouvée",
+        });
       }
 
       const sessionId = "test_session_" + ctx.session.user.id;
@@ -212,7 +221,10 @@ export const chatV2Router = createTRPCRouter({
       });
 
       if (!session) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Session non trouvée" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Session non trouvée",
+        });
       }
 
       const messages = JSON.parse(session.messages ?? "[]") as Array<{
@@ -232,7 +244,10 @@ export const chatV2Router = createTRPCRouter({
       });
 
       if (!session) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Session non trouvée" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Session non trouvée",
+        });
       }
 
       await ctx.db.chatSession.delete({ where: { id: input.sessionId } });
