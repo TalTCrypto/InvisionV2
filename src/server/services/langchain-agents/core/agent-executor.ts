@@ -213,7 +213,7 @@ export class AgentExecutor {
     input: string,
     context: AgentExecutionContext,
   ): AsyncGenerator<{
-    type: "token" | "message" | "tool" | "end";
+    type: "token" | "message" | "tool" | "clear" | "end";
     data: unknown;
   }> {
     for (const tool of this.tools) {
@@ -325,6 +325,12 @@ export class AgentExecutor {
       }
 
       if (parsed.type === "tool_call" && parsed.action && parsed.actionInput) {
+        // If tokens were streamed before we confirmed it's a tool call
+        // (model emitted "Final Answer:" before Action), clear them.
+        if (streamingFinalAnswer) {
+          yield { type: "clear", data: {} };
+        }
+
         // Notify tool execution
         yield {
           type: "tool",
@@ -514,16 +520,9 @@ export class AgentExecutor {
     actionInput?: unknown;
     content: string;
   } {
-    // Check for Final Answer
-    if (response.includes("Final Answer:")) {
-      const finalAnswerMatch = /Final Answer:\s*(.+)/is.exec(response);
-      return {
-        type: "final_answer",
-        content: finalAnswerMatch?.[1]?.trim() ?? response,
-      };
-    }
-
-    // Parse ReAct format
+    // Tool-call check FIRST — Action + Action Input take priority.
+    // The model sometimes emits "Final Answer:" before the action; checking
+    // for the action first avoids mis-classifying a tool call as a final answer.
     const thoughtMatch = /Thought:\s*(.+?)(?=\nAction:|$)/is.exec(response);
     const actionMatch = /Action:\s*(\w+)/i.exec(response);
     const actionInputRaw = (/Action Input:\s*([\s\S]+)/i.exec(response) ??
@@ -547,6 +546,15 @@ export class AgentExecutor {
         action: actionMatch[1]!.trim(),
         actionInput,
         content: response,
+      };
+    }
+
+    // No tool call — check for Final Answer
+    if (response.includes("Final Answer:")) {
+      const finalAnswerMatch = /Final Answer:\s*(.+)/is.exec(response);
+      return {
+        type: "final_answer",
+        content: finalAnswerMatch?.[1]?.trim() ?? response,
       };
     }
 

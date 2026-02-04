@@ -106,7 +106,7 @@ export class PerformanceAgent {
     input: string,
     context: AgentExecutionContext,
   ): AsyncGenerator<{
-    type: "token" | "message" | "tool" | "end";
+    type: "token" | "message" | "tool" | "clear" | "end";
     data: unknown;
   }> {
     await this.initComposio(context);
