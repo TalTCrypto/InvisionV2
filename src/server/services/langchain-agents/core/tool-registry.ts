@@ -1,7 +1,7 @@
 import type { BaseTool } from "../tools/base-tool";
 
 export class ToolRegistry {
-  private tools: Map<string, BaseTool> = new Map();
+  private tools: Map<string, BaseTool> = new Map<string, BaseTool>();
 
   register(tool: BaseTool): void {
     if (this.tools.has(tool.name)) {

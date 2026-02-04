@@ -16,7 +16,7 @@ import type {
 } from "../types";
 import type { BaseTool } from "../tools/base-tool";
 import type { ConnectedIntegration } from "../tools/composio.tool-loader";
-import { ConversationMemory } from "../memory/conversation-memory";
+import { type ConversationMemory } from "../memory/conversation-memory";
 import { env } from "~/env";
 
 export class AgentExecutor {
@@ -27,8 +27,8 @@ export class AgentExecutor {
     private tools: BaseTool[],
     private systemPrompt: string,
     private memory: ConversationMemory,
-    private maxIterations: number = 10,
-    temperature: number = 0.3,
+    private maxIterations = 10,
+    temperature = 0.3,
     private connectedIntegrations: ConnectedIntegration[] = [],
   ) {
     this.llm = this.createLLM(model, temperature);
@@ -76,7 +76,7 @@ export class AgentExecutor {
       new SystemMessage(systemParts.join("\n\n")),
     ];
 
-    let currentMessages = [
+    const currentMessages = [
       ...systemMessages,
       ...conversationHistory.filter(
         (msg): msg is SystemMessage | HumanMessage | AIMessage =>
@@ -112,11 +112,15 @@ export class AgentExecutor {
           break;
         }
 
-        if (parsed.type === "tool_call" && parsed.action && parsed.actionInput) {
+        if (
+          parsed.type === "tool_call" &&
+          parsed.action &&
+          parsed.actionInput
+        ) {
           // Record reasoning step
           reasoning.push({
             step: iteration,
-            thought: parsed.thought || "",
+            thought: parsed.thought ?? "",
             action: parsed.action,
             actionInput: parsed.actionInput,
             timestamp: Date.now(),
@@ -134,7 +138,7 @@ export class AgentExecutor {
           // Add observation to conversation
           currentMessages.push(new AIMessage(response));
           currentMessages.push(
-            new HumanMessage(`Observation: ${toolExecution.output}`),
+            new HumanMessage(`Observation: ${String(toolExecution.output)}`),
           );
 
           // Update last reasoning step with observation
@@ -235,7 +239,7 @@ export class AgentExecutor {
       new SystemMessage(systemParts.join("\n\n")),
     ];
 
-    let currentMessages = [
+    const currentMessages = [
       ...systemMessages,
       ...conversationHistory.filter(
         (msg): msg is SystemMessage | HumanMessage | AIMessage =>
@@ -352,7 +356,7 @@ export class AgentExecutor {
         // Update messages
         currentMessages.push(new AIMessage(iterationResponse));
         currentMessages.push(
-          new HumanMessage(`Observation: ${toolExecution.output}`),
+          new HumanMessage(`Observation: ${String(toolExecution.output)}`),
         );
       } else {
         finalAnswer = iterationResponse;
@@ -389,7 +393,8 @@ export class AgentExecutor {
 
     const toolsDesc = this.tools
       .map((tool) => {
-        const shape = (tool.schema as { shape?: Record<string, unknown> }).shape;
+        const shape = (tool.schema as { shape?: Record<string, unknown> })
+          .shape;
         let paramsStr = "{}";
         if (shape) {
           const paramLines = Object.entries(shape).map(([key, zodField]) => {
@@ -408,11 +413,11 @@ export class AgentExecutor {
 
             if (node?._def?.typeName === "ZodOptional") {
               isOptional = true;
-              node = (node._def.innerType ?? {}) as ZodNode;
+              node = node._def.innerType ?? {};
             }
             if (node?._def?.typeName === "ZodDefault") {
               isOptional = true; // has default → not required
-              node = (node._def.schema ?? {}) as ZodNode;
+              node = node._def.schema ?? {};
             }
 
             let typeName = "string";
@@ -423,7 +428,9 @@ export class AgentExecutor {
             else if (tn === "ZodString") typeName = "string";
             else if (tn === "ZodAny") typeName = "any";
 
-            const desc = String(node?._def?.description ?? node?.description ?? "");
+            const desc = String(
+              node?._def?.description ?? node?.description ?? "",
+            );
             const opt = isOptional ? "?" : "";
             return `"${key}"${opt}: ${typeName}${desc ? ` (${desc})` : ""}`;
           });
@@ -445,13 +452,11 @@ export class AgentExecutor {
   private buildIntegrationsContext(): string | null {
     if (this.connectedIntegrations.length === 0) return null;
 
-    const names = this.connectedIntegrations.map((i) =>
-      i.toolkitSlug.charAt(0).toUpperCase() + i.toolkitSlug.slice(1),
+    const names = this.connectedIntegrations.map(
+      (i) => i.toolkitSlug.charAt(0).toUpperCase() + i.toolkitSlug.slice(1),
     );
 
-    const composioTools = this.tools.filter((t) =>
-      t.tags.includes("composio"),
-    );
+    const composioTools = this.tools.filter((t) => t.tags.includes("composio"));
 
     const toolsList = composioTools
       .map((t) => `  - ${t.name}: ${t.description}`)
@@ -511,22 +516,18 @@ export class AgentExecutor {
   } {
     // Check for Final Answer
     if (response.includes("Final Answer:")) {
-      const finalAnswerMatch = response.match(
-        /Final Answer:\s*(.+)/is,
-      );
+      const finalAnswerMatch = /Final Answer:\s*(.+)/is.exec(response);
       return {
         type: "final_answer",
-        content: finalAnswerMatch?.[1]?.trim() || response,
+        content: finalAnswerMatch?.[1]?.trim() ?? response,
       };
     }
 
     // Parse ReAct format
-    const thoughtMatch = response.match(/Thought:\s*(.+?)(?=\nAction:|$)/is);
-    const actionMatch = response.match(/Action:\s*(\w+)/i);
-    const actionInputRaw = (
-      response.match(/Action Input:\s*([\s\S]+)/i) ??
-      response.match(/^Input:\s*([\s\S]+)/im)
-    )?.[1]?.trim();
+    const thoughtMatch = /Thought:\s*(.+?)(?=\nAction:|$)/is.exec(response);
+    const actionMatch = /Action:\s*(\w+)/i.exec(response);
+    const actionInputRaw = (/Action Input:\s*([\s\S]+)/i.exec(response) ??
+      /^Input:\s*([\s\S]+)/im.exec(response))?.[1]?.trim();
 
     if (actionMatch && actionInputRaw) {
       let actionInput: unknown;
@@ -551,7 +552,7 @@ export class AgentExecutor {
 
     // No valid ReAct format — treat as final answer.
     // Strip a stray "Thought:" prefix if the model forgot "Final Answer:".
-    const thoughtOnly = response.match(/^Thought:\s*([\s\S]+)/i);
+    const thoughtOnly = /^Thought:\s*([\s\S]+)/i.exec(response);
     return {
       type: "final_answer",
       content: thoughtOnly ? thoughtOnly[1]!.trim() : response,
@@ -597,7 +598,7 @@ export class AgentExecutor {
 
       tool.setContext(context);
       const langchainTool = tool.toLangChainTool();
-      const result = await langchainTool.invoke(input);
+      const result = (await langchainTool.invoke(input)) as string;
 
       return {
         toolName,
