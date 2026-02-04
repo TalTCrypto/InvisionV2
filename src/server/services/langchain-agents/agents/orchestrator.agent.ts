@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "../../../../../generated/prisma";
 import type { Composio } from "@composio/core";
 import type {
   AgentResponse,
@@ -54,17 +54,11 @@ export class OrchestratorAgent {
 
   private setupTools(): void {
     this.toolRegistry.register(
-      new MultiSourceRAGTool(
-        this.config.documentProcessor,
-        this.config.db,
-      ),
+      new MultiSourceRAGTool(this.config.documentProcessor, this.config.db),
     );
 
     this.toolRegistry.register(
-      new ResourceSearchTool(
-        this.config.documentProcessor,
-        this.config.db,
-      ),
+      new ResourceSearchTool(this.config.documentProcessor, this.config.db),
     );
 
     this.toolRegistry.register(
@@ -130,8 +124,6 @@ export class OrchestratorAgent {
   }
 
   getToolsByCategory(category: string): string[] {
-    return this.toolRegistry
-      .getByTags([category])
-      .map((tool) => tool.name);
+    return this.toolRegistry.getByTags([category]).map((tool) => tool.name);
   }
 }

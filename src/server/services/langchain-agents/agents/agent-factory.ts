@@ -1,8 +1,14 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "../../../../../generated/prisma";
 import type { Composio } from "@composio/core";
-import { OrchestratorAgent, type OrchestratorConfig } from "./orchestrator.agent";
+import {
+  OrchestratorAgent,
+  type OrchestratorConfig,
+} from "./orchestrator.agent";
 import { ContentAgent, type ContentAgentConfig } from "./content.agent";
-import { PerformanceAgent, type PerformanceAgentConfig } from "./performance.agent";
+import {
+  PerformanceAgent,
+  type PerformanceAgentConfig,
+} from "./performance.agent";
 import { StrategyAgent, type StrategyAgentConfig } from "./strategy.agent";
 import type { DocumentProcessor } from "~/server/services/langchain-processor";
 import type { InstagramReelAnalyzer } from "~/server/utils/instagram-analyzer";
@@ -44,7 +50,7 @@ export class AgentFactory {
       case "strategy":
         return this.createStrategyAgent();
       default:
-        throw new Error(`Unknown agent type: ${type satisfies never}`);
+        throw new Error(`Unknown agent type: ${type as string}`);
     }
   }
 

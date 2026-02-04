@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "../../../../../generated/prisma";
 import { BaseTool } from "./base-tool";
 import type { ToolExecutionContext } from "../types";
 import type {
@@ -30,9 +30,7 @@ export class ResourceSearchTool extends BaseTool<
   readonly description =
     "Recherche sémantique dans les ressources business de l'organisation (documents, guides, templates). Utilise cette fonction pour trouver des informations pertinentes dans la base de connaissances.";
   readonly schema = z.object({
-    query: z
-      .string()
-      .describe("Requête de recherche en langage naturel"),
+    query: z.string().describe("Requête de recherche en langage naturel"),
     category: z
       .string()
       .optional()
@@ -70,8 +68,7 @@ export class ResourceSearchTool extends BaseTool<
       },
     };
 
-    const resources =
-      await this.db.businessResource.findMany(resourcesQuery);
+    const resources = await this.db.businessResource.findMany(resourcesQuery);
 
     if (resources.length === 0) {
       return {
@@ -80,23 +77,25 @@ export class ResourceSearchTool extends BaseTool<
       };
     }
 
-    const allChunks = resources.flatMap((resource: { id: string; title: string; chunks: string | null; }) => {
-      if (!resource.chunks) return [];
+    const allChunks = resources.flatMap(
+      (resource: { id: string; title: string; chunks: string | null }) => {
+        if (!resource.chunks) return [];
 
-      try {
-        const parsed = JSON.parse(resource.chunks) as Array<{
-          text: string;
-          index: number;
-          embedding: number[];
-        }>;
-        return parsed.map((chunk) => ({
-          ...chunk,
-          resourceName: resource.title,
-        }));
-      } catch {
-        return [];
-      }
-    });
+        try {
+          const parsed = JSON.parse(resource.chunks) as Array<{
+            text: string;
+            index: number;
+            embedding: number[];
+          }>;
+          return parsed.map((chunk) => ({
+            ...chunk,
+            resourceName: resource.title,
+          }));
+        } catch {
+          return [];
+        }
+      },
+    );
 
     if (allChunks.length === 0) {
       return {
