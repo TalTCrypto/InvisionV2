@@ -61,7 +61,7 @@ Réponds en JSON structuré selon le schéma fourni.`;
       ]);
 
       const content = response.content as string;
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      const jsonMatch = /\{[\s\S]*\}/.exec(content);
 
       if (!jsonMatch) {
         console.warn(
