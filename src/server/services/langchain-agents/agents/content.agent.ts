@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "../../../../../generated/prisma";
 import type { Composio } from "@composio/core";
 import type {
   AgentResponse,
@@ -118,8 +118,6 @@ export class ContentAgent {
   }
 
   getToolsByCategory(category: string): string[] {
-    return this.toolRegistry
-      .getByTags([category])
-      .map((tool) => tool.name);
+    return this.toolRegistry.getByTags([category]).map((tool) => tool.name);
   }
 }

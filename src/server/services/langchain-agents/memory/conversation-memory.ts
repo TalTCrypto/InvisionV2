@@ -1,5 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai";
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "../../../../../generated/prisma";
 import {
   HumanMessage,
   AIMessage,

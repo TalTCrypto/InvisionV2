@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "../../../../../generated/prisma";
 import { BaseTool } from "./base-tool";
 import type { ToolExecutionContext } from "../types";
 import type {
@@ -55,9 +55,7 @@ export class MultiSourceRAGTool extends BaseTool<
   readonly description =
     "Recherche intelligente dans plusieurs sources (resources, Instagram insights, YouTube insights). Fusionne et pondère les résultats par pertinence et fraîcheur. Utilise cette fonction pour obtenir une vue complète des informations disponibles.";
   readonly schema = z.object({
-    query: z
-      .string()
-      .describe("Requête de recherche en langage naturel"),
+    query: z.string().describe("Requête de recherche en langage naturel"),
     sources: z
       .array(z.enum(["resources", "instagram", "youtube"]))
       .optional()
@@ -146,7 +144,7 @@ export class MultiSourceRAGTool extends BaseTool<
     // Calculate source breakdown
     const sourceBreakdown = topResults.reduce(
       (acc, result) => {
-        acc[result.source] = (acc[result.source] || 0) + 1;
+        acc[result.source] = (acc[result.source] ?? 0) + 1;
         return acc;
       },
       {} as Record<string, number>,
@@ -178,24 +176,31 @@ export class MultiSourceRAGTool extends BaseTool<
       take: 50,
     });
 
-    const allChunks = resources.flatMap((resource: { id: string; title: string; chunks: string | null; createdAt: Date }) => {
-      if (!resource.chunks) return [];
+    const allChunks = resources.flatMap(
+      (resource: {
+        id: string;
+        title: string;
+        chunks: string | null;
+        createdAt: Date;
+      }) => {
+        if (!resource.chunks) return [];
 
-      try {
-        const parsed = JSON.parse(resource.chunks) as Array<{
-          text: string;
-          index: number;
-          embedding: number[];
-        }>;
-        return parsed.map((chunk) => ({
-          ...chunk,
-          resourceName: resource.title,
-          createdAt: resource.createdAt,
-        }));
-      } catch {
-        return [];
-      }
-    });
+        try {
+          const parsed = JSON.parse(resource.chunks) as Array<{
+            text: string;
+            index: number;
+            embedding: number[];
+          }>;
+          return parsed.map((chunk) => ({
+            ...chunk,
+            resourceName: resource.title,
+            createdAt: resource.createdAt,
+          }));
+        } catch {
+          return [];
+        }
+      },
+    );
 
     if (allChunks.length === 0) {
       return [];
@@ -213,104 +218,30 @@ export class MultiSourceRAGTool extends BaseTool<
       similarity: result.similarity,
       metadata: {
         resourceName: (result.chunk as { resourceName?: string }).resourceName,
-        createdAt: (result.chunk as { createdAt?: Date }).createdAt?.toISOString(),
+        createdAt: (
+          result.chunk as { createdAt?: Date }
+        ).createdAt?.toISOString(),
       },
       score: result.similarity,
     }));
   }
 
   private async searchInstagramInsights(
-    query: string,
-    organizationId: string,
-    limit: number,
+    _query: string,
+    _organizationId: string,
+    _limit: number,
   ): Promise<SourceResult[]> {
-    // TODO: Implémenter recherche dans Instagram insights
-    // Pour l'instant, retourne vide en attendant l'intégration complète
-    const insights = await this.db.instagramInsight.findMany({
-      where: {
-        organizationId,
-      },
-      select: {
-        id: true,
-        postUrl: true,
-        caption: true,
-        insights: true,
-        createdAt: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: limit,
-    });
-
-    // Basic text matching (to be replaced with semantic search)
-    const queryLower = query.toLowerCase();
-    const relevantInsights = insights
-      .filter((insight: { caption: string | null; insights: unknown }) => {
-        const caption = insight.caption?.toLowerCase() ?? "";
-        const insightsText = JSON.stringify(insight.insights).toLowerCase();
-        return caption.includes(queryLower) || insightsText.includes(queryLower);
-      })
-      .map((insight: { postUrl: string; caption: string | null; insights: unknown; createdAt: Date }) => ({
-        source: "instagram" as const,
-        text: `Caption: ${insight.caption}\nInsights: ${JSON.stringify(insight.insights)}`,
-        similarity: 0.7, // Placeholder score
-        metadata: {
-          postUrl: insight.postUrl,
-          createdAt: insight.createdAt.toISOString(),
-          metrics: insight.insights as Record<string, unknown>,
-        },
-        score: 0.7,
-      }));
-
-    return relevantInsights;
+    // TODO: Implémenter recherche dans Instagram insights une fois le modèle ajouté au schéma
+    return [];
   }
 
   private async searchYouTubeInsights(
-    query: string,
-    organizationId: string,
-    limit: number,
+    _query: string,
+    _organizationId: string,
+    _limit: number,
   ): Promise<SourceResult[]> {
-    // TODO: Implémenter recherche dans YouTube insights
-    // Pour l'instant, retourne vide en attendant l'intégration complète
-    const insights = await this.db.youTubeInsight.findMany({
-      where: {
-        organizationId,
-      },
-      select: {
-        id: true,
-        videoUrl: true,
-        title: true,
-        insights: true,
-        createdAt: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: limit,
-    });
-
-    // Basic text matching (to be replaced with semantic search)
-    const queryLower = query.toLowerCase();
-    const relevantInsights = insights
-      .filter((insight: { title: string | null; insights: unknown }) => {
-        const title = insight.title?.toLowerCase() ?? "";
-        const insightsText = JSON.stringify(insight.insights).toLowerCase();
-        return title.includes(queryLower) || insightsText.includes(queryLower);
-      })
-      .map((insight: { videoUrl: string; title: string | null; insights: unknown; createdAt: Date }) => ({
-        source: "youtube" as const,
-        text: `Title: ${insight.title}\nInsights: ${JSON.stringify(insight.insights)}`,
-        similarity: 0.7, // Placeholder score
-        metadata: {
-          videoUrl: insight.videoUrl,
-          createdAt: insight.createdAt.toISOString(),
-          metrics: insight.insights as Record<string, unknown>,
-        },
-        score: 0.7,
-      }));
-
-    return relevantInsights;
+    // TODO: Implémenter recherche dans YouTube insights une fois le modèle ajouté au schéma
+    return [];
   }
 
   private calculateRecencyScore(createdAt: string | undefined): number {
