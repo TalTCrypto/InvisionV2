@@ -92,12 +92,13 @@ function parseChunks(chunksJson: string | null): ChunkWithEmbedding[] {
 export async function fetchResourceContext(
   userId: string,
   videoTitle?: string,
+  organizationId?: string,
 ): Promise<ResourceSnippet[]> {
-  const organizationId = await getOrganizationId(userId);
-  if (!organizationId) return [];
+  const orgId = organizationId ?? (await getOrganizationId(userId));
+  if (!orgId) return [];
 
   const resources = await db.businessResource.findMany({
-    where: { organizationId, processingStatus: "completed" },
+    where: { organizationId: orgId, processingStatus: "completed" },
     select: { id: true, title: true, chunks: true },
   });
   if (resources.length === 0) return [];
@@ -140,4 +141,38 @@ export async function fetchResourceContext(
   }
 
   return snippets;
+}
+
+/**
+ * Formats resource snippets into a system-prompt block ready for injection.
+ * Groups by topic with source attribution.  Returns "" when snippets is empty.
+ */
+export function formatResourcesForPrompt(snippets: ResourceSnippet[]): string {
+  if (snippets.length === 0) return "";
+
+  const byTopic = new Map<string, ResourceSnippet[]>();
+  for (const s of snippets) {
+    const arr = byTopic.get(s.topic) ?? [];
+    arr.push(s);
+    byTopic.set(s.topic, arr);
+  }
+
+  const sections = Array.from(byTopic.entries()).map(([topic, items]) => {
+    const lines = items.map((s) => `- [${s.source}] ${s.content}`);
+    return `### ${topic}\n${lines.join("\n")}`;
+  });
+
+  return [
+    `## 📋 CONTEXTE BUSINESS DE L'UTILISATEUR (SOURCE DE VÉRITÉ)`,
+    ``,
+    `Ces données sont extraites des ressources que l'utilisateur a fournies.`,
+    `Elles sont ABSOLUMENT contraignantes — jamais inventer, jamais généraliser.`,
+    `Chaque recommandation, analyse ou suggestion DOIT être ancrée sur ces données.`,
+    `Si une information n'est pas dans ce contexte, le dire explicitement.`,
+    ``,
+    ...sections,
+    ``,
+    `⚠️ RÈGLE: Chaque point de votre réponse doit référencer au moins un élément ci-dessus.`,
+    `Citez la source entre guillemets: "Selon votre [source], ..."`,
+  ].join("\n");
 }
