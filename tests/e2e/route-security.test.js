@@ -127,6 +127,20 @@ const APIS = [
     unauthed: 401,
     authed: "!401",
   },
+
+  // POST endpoints – empty body → 400 (validation); we only assert auth gate
+  {
+    method: "POST",
+    path: "/api/youtube/analyze",
+    unauthed: 401,
+    authed: "!401",
+  },
+  {
+    method: "POST",
+    path: "/api/audio/transcribe",
+    unauthed: 401,
+    authed: "!401",
+  },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -216,7 +230,14 @@ function fmtApi(method, path, expectation, actual, ok) {
       const actual = await navigateTo(page, route.path);
       const expected = route[pageExpectKey];
       const ok = checkPage(route.path, expected, actual);
-      all.push({ ok, phase, section: "page", path: route.path, expected, actual });
+      all.push({
+        ok,
+        phase,
+        section: "page",
+        path: route.path,
+        expected,
+        actual,
+      });
       console.log(fmtPage(route.path, expected, actual, ok));
     }
 
@@ -229,7 +250,15 @@ function fmtApi(method, path, expectation, actual, ok) {
       const actual = await apiStatus(page, route.method, route.path);
       const expected = route[apiExpectKey];
       const ok = checkApi(expected, actual);
-      all.push({ ok, phase, section: "api", path: route.path, method: route.method, expected, actual });
+      all.push({
+        ok,
+        phase,
+        section: "api",
+        path: route.path,
+        method: route.method,
+        expected,
+        actual,
+      });
       console.log(fmtApi(route.method, route.path, expected, actual, ok));
     }
   }

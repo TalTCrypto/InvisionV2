@@ -34,6 +34,10 @@ import {
   Play,
   PauseCircle,
   RefreshCw,
+  Mic,
+  Upload,
+  X,
+  BookOpen,
 } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
@@ -41,8 +45,8 @@ import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { AnimatedCard } from "~/components/ui/animated-card";
 import { BlurFade } from "~/components/ui/blur-fade";
-import { api } from "~/trpc/react";
 import { cn } from "~/lib/utils";
+import { Textarea } from "~/components/ui/textarea";
 
 interface HookAnalysis {
   score: number;
@@ -134,6 +138,18 @@ interface ActionableInsight {
   effort: string;
 }
 
+interface ResourceLink {
+  source: string;
+  topic: string;
+  excerpt: string;
+  reasoning: string;
+}
+
+interface ResourceJustification {
+  point: string;
+  linkedResources: ResourceLink[];
+}
+
 interface AnalysisResult {
   overallScore?: number;
   verdict?: string;
@@ -149,6 +165,7 @@ interface AnalysisResult {
   targetAudience?: string;
   recommendations?: string[];
   videoDuration?: string;
+  resourceJustifications?: ResourceJustification[];
 }
 
 interface VideoMetadata {
@@ -160,6 +177,8 @@ interface VideoMetadata {
   viewCount?: string;
   duration?: string;
   durationSeconds?: number;
+  resourcesUsed?: number;
+  resourceTitles?: string[];
 }
 
 interface CachedAnalysis {
@@ -170,6 +189,7 @@ interface CachedAnalysis {
 }
 
 type AnalysisStep = "idle" | "fetching" | "analyzing" | "complete" | "error";
+type InputMode = "url" | "transcript" | "audio";
 
 const CACHE_KEY_PREFIX = "yt-analysis-";
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 heures
@@ -220,6 +240,59 @@ function extractVideoIdFromUrl(url: string): string | null {
     if (match?.[1]) return match[1];
   }
   return null;
+}
+
+async function consumeSSEStream(
+  response: Response,
+  onEvent: (event: string, data: unknown) => void,
+): Promise<void> {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("No response body");
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() ?? "";
+
+    for (const part of parts) {
+      if (!part.trim()) continue;
+      let eventName = "message";
+      let dataStr = "";
+      for (const line of part.split("\n")) {
+        if (line.startsWith("event:")) eventName = line.slice(6).trim();
+        if (line.startsWith("data:")) dataStr = line.slice(5).trim();
+      }
+      if (dataStr) {
+        try {
+          onEvent(eventName, JSON.parse(dataStr));
+        } catch {
+          // skip malformed
+        }
+      }
+    }
+  }
+
+  // Process any remaining buffer after stream closes
+  if (buffer.trim()) {
+    let eventName = "message";
+    let dataStr = "";
+    for (const line of buffer.split("\n")) {
+      if (line.startsWith("event:")) eventName = line.slice(6).trim();
+      if (line.startsWith("data:")) dataStr = line.slice(5).trim();
+    }
+    if (dataStr) {
+      try {
+        onEvent(eventName, JSON.parse(dataStr));
+      } catch {
+        // skip malformed
+      }
+    }
+  }
 }
 
 function ScoreRing({
@@ -281,6 +354,192 @@ function ScoreBar({ score, label }: { score: number; label: string }) {
   );
 }
 
+function ResourceJustificationsSection({
+  justifications,
+}: {
+  justifications: ResourceJustification[];
+}) {
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+  // Palette de couleurs pour les sources (cycle si plus de 5 sources)
+  const sourceColors = [
+    {
+      bg: "bg-violet-500/10",
+      border: "border-violet-500/30",
+      text: "text-violet-600 dark:text-violet-400",
+      badge: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+    },
+    {
+      bg: "bg-blue-500/10",
+      border: "border-blue-500/30",
+      text: "text-blue-600 dark:text-blue-400",
+      badge: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+    },
+    {
+      bg: "bg-emerald-500/10",
+      border: "border-emerald-500/30",
+      text: "text-emerald-600 dark:text-emerald-400",
+      badge: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    },
+    {
+      bg: "bg-amber-500/10",
+      border: "border-amber-500/30",
+      text: "text-amber-600 dark:text-amber-400",
+      badge: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+    },
+    {
+      bg: "bg-rose-500/10",
+      border: "border-rose-500/30",
+      text: "text-rose-600 dark:text-rose-400",
+      badge: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+    },
+  ];
+
+  // Index de couleur stable par source (même source = même couleur partout)
+  const sourceSet = [
+    ...new Set(
+      justifications.flatMap((j) => j.linkedResources.map((r) => r.source)),
+    ),
+  ];
+  const getSourceColor = (source: string) =>
+    sourceColors[sourceSet.indexOf(source) % sourceColors.length]!;
+
+  return (
+    <AnimatedCard gradientFrom="#7c3aed" gradientTo="#2563eb">
+      <div className="p-6">
+        <div className="mb-2 flex items-center gap-2">
+          <BookOpen className="size-5 text-violet-600 dark:text-violet-400" />
+          <h3 className="text-lg font-semibold">
+            Justifications par vos Ressources
+          </h3>
+        </div>
+        <p className="text-muted-foreground mb-5 text-sm">
+          Chaque recommandation tracée vers la ressource qui l&apos;a influencée
+          — raisonnement explicite avec citations
+        </p>
+
+        <div className="space-y-3">
+          {justifications.map((j, idx) => {
+            const isOpen = expandedIdx === idx;
+            return (
+              <div
+                key={idx}
+                className="bg-card/60 overflow-hidden rounded-xl border border-violet-500/20"
+              >
+                {/* Header cliquable */}
+                <button
+                  onClick={() => setExpandedIdx(isOpen ? null : idx)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-start gap-3 px-4 py-3.5">
+                    <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-500/15">
+                      <span className="text-xs font-bold text-violet-600 dark:text-violet-400">
+                        {idx + 1}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm leading-snug font-medium">
+                        {j.point}
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {j.linkedResources.map((r, ri) => {
+                          const col = getSourceColor(r.source);
+                          return (
+                            <span
+                              key={ri}
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                                col.badge,
+                              )}
+                            >
+                              <BookOpen className="size-2.5" />
+                              {r.source}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      {isOpen ? (
+                        <ChevronUp className="text-muted-foreground size-4" />
+                      ) : (
+                        <ChevronDown className="text-muted-foreground size-4" />
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                {/* Détail dépliable */}
+                {isOpen && (
+                  <div className="border-t border-violet-500/15 px-4 pt-3 pb-4">
+                    <div className="space-y-3">
+                      {j.linkedResources.map((r, ri) => {
+                        const col = getSourceColor(r.source);
+                        return (
+                          <div
+                            key={ri}
+                            className={cn(
+                              "rounded-lg border p-3.5",
+                              col.border,
+                              col.bg,
+                            )}
+                          >
+                            <div className="mb-2 flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  "text-xs font-semibold",
+                                  col.text,
+                                )}
+                              >
+                                {r.source}
+                              </span>
+                              <span className="text-muted-foreground text-xs">
+                                /
+                              </span>
+                              <span className="text-muted-foreground text-xs">
+                                {r.topic}
+                              </span>
+                            </div>
+
+                            {/* Citation de la ressource */}
+                            <div
+                              className={cn(
+                                "mb-2.5 border-l-2 pl-3",
+                                col.border,
+                              )}
+                            >
+                              <p className={cn("text-xs italic", col.text)}>
+                                &quot;{r.excerpt}&quot;
+                              </p>
+                            </div>
+
+                            {/* Chaîne de raisonnement */}
+                            <div className="flex items-start gap-2">
+                              <Lightbulb
+                                className={cn(
+                                  "mt-0.5 size-3.5 shrink-0",
+                                  col.text,
+                                )}
+                              />
+                              <p className="text-sm leading-relaxed">
+                                {r.reasoning}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </AnimatedCard>
+  );
+}
+
 export default function YouTubeAnalysisPage() {
   const [videoUrl, setVideoUrl] = useState("");
   const [step, setStep] = useState<AnalysisStep>("idle");
@@ -292,11 +551,9 @@ export default function YouTubeAnalysisPage() {
   const [showTranscript, setShowTranscript] = useState(false);
   const [currentStatus, setCurrentStatus] = useState("");
   const [isCached, setIsCached] = useState(false);
-
-  const getTranscript = api.youtube.getTranscript.useQuery(
-    { urlOrId: videoUrl, withTimestamps: true },
-    { enabled: false },
-  );
+  const [inputMode, setInputMode] = useState<InputMode>("url");
+  const [transcriptText, setTranscriptText] = useState("");
+  const [audioFile, setAudioFile] = useState<File | null>(null);
 
   // Charger depuis le cache quand l'URL change
   useEffect(() => {
@@ -317,6 +574,34 @@ export default function YouTubeAnalysisPage() {
       setIsCached(false);
     }
   }, [videoUrl]);
+
+  const handleSSEEvent = useCallback((event: string, data: unknown) => {
+    if (event === "metadata") {
+      setMetadata((prev) => ({ ...prev, ...(data as VideoMetadata) }));
+    } else if (event === "status") {
+      setCurrentStatus((data as { message: string }).message);
+    } else if (event === "token") {
+      const chunk = (data as { chunk?: string }).chunk;
+      if (chunk) setStreamingText((prev) => prev + chunk);
+    } else if (event === "analysis") {
+      const analysisData = data as {
+        complete: boolean;
+        parsedAnalysis?: AnalysisResult;
+      };
+      if (analysisData.complete && analysisData.parsedAnalysis) {
+        setAnalysis(analysisData.parsedAnalysis);
+        setStep("complete");
+        clarityEvent("youtube_analysis_completed");
+        clarityUpgrade("completed_youtube_analysis");
+      }
+    } else if (event === "error") {
+      setError(
+        (data as { error?: string }).error ?? "Erreur lors de l'analyse",
+      );
+      setStep("error");
+      clarityEvent("youtube_analysis_error");
+    }
+  }, []);
 
   const startAnalysis = useCallback(
     async (forceRefresh = false) => {
@@ -342,113 +627,200 @@ export default function YouTubeAnalysisPage() {
         }
       }
 
-      setStep("fetching");
+      setStep("analyzing");
       setError(null);
       setMetadata(null);
       setTranscript(null);
       setAnalysis(null);
       setStreamingText("");
-      setCurrentStatus("Récupération du transcript...");
+      setCurrentStatus("Initialisation de l'analyse...");
       setIsCached(false);
 
+      let completed = false;
+      let cachedMeta: VideoMetadata = { videoId: videoId ?? "" };
+      let cachedTranscriptText = "";
+
       try {
-        const transcriptResult = await getTranscript.refetch();
-
-        if (transcriptResult.error) {
-          console.error("[YouTube] Transcript error:", transcriptResult.error);
-          throw new Error("Erreur lors de la récupération du transcript");
-        }
-
-        if (!transcriptResult.data) {
-          throw new Error("Impossible de récupérer le transcript");
-        }
-
-        setMetadata(transcriptResult.data.metadata);
-        setTranscript(transcriptResult.data.transcript);
-        setStep("analyzing");
-
-        const eventSource = new EventSource(
+        const response = await fetch(
           `/api/youtube/analyze?videoId=${encodeURIComponent(videoUrl)}&language=fr`,
         );
 
-        eventSource.addEventListener(
-          "metadata",
-          (event: MessageEvent<string>) => {
-            const data = JSON.parse(event.data) as VideoMetadata;
-            setMetadata((prev) => ({ ...prev, ...data }));
-          },
-        );
-
-        eventSource.addEventListener(
-          "status",
-          (event: MessageEvent<string>) => {
-            const data = JSON.parse(event.data) as {
-              status: string;
-              message: string;
-            };
-            setCurrentStatus(data.message);
-          },
-        );
-
-        eventSource.addEventListener("token", (event: MessageEvent<string>) => {
-          const data = JSON.parse(event.data) as { chunk?: string };
-          if (data.chunk) {
-            setStreamingText((prev) => prev + data.chunk);
+        if (!response.ok) {
+          let errorMsg = "Impossible d'analyser cette vidéo";
+          try {
+            const errBody = (await response.json()) as { error?: string };
+            errorMsg = errBody.error ?? errorMsg;
+          } catch {
+            // non-JSON error response
           }
-        });
+          throw new Error(errorMsg);
+        }
 
-        eventSource.addEventListener(
-          "analysis",
-          (event: MessageEvent<string>) => {
-            const data = JSON.parse(event.data) as {
+        await consumeSSEStream(response, (event, data) => {
+          // Intercept metadata & analysis for caching
+          if (event === "metadata") {
+            const meta = data as VideoMetadata & { transcript?: string };
+            cachedMeta = { ...cachedMeta, ...meta };
+            if (meta.transcript) {
+              cachedTranscriptText = meta.transcript;
+              setTranscript(meta.transcript);
+            }
+          }
+          if (event === "analysis") {
+            const analysisData = data as {
               complete: boolean;
               parsedAnalysis?: AnalysisResult;
             };
-
-            if (data.complete && data.parsedAnalysis) {
-              setAnalysis(data.parsedAnalysis);
-              setStep("complete");
-              eventSource.close();
-
-              // Sauvegarder dans le cache
-              if (videoId && transcriptResult.data) {
+            if (analysisData.complete && analysisData.parsedAnalysis) {
+              completed = true;
+              if (videoId) {
                 setCachedAnalysis(
                   videoId,
-                  transcriptResult.data.metadata,
-                  transcriptResult.data.transcript,
-                  data.parsedAnalysis,
+                  cachedMeta,
+                  cachedTranscriptText,
+                  analysisData.parsedAnalysis,
                 );
               }
-
-              clarityEvent("youtube_analysis_completed");
-              clarityUpgrade("completed_youtube_analysis");
             }
-          },
-        );
-
-        eventSource.addEventListener("error", (event: MessageEvent<string>) => {
-          const data = JSON.parse(event.data ?? "{}") as { error?: string };
-          console.error("[YouTube] Analysis error:", data.error);
-          setError("Erreur lors de l'analyse de la vidéo");
-          setStep("error");
-          eventSource.close();
-          clarityEvent("youtube_analysis_error");
+          }
+          // Shared event → state handler
+          handleSSEEvent(event, data);
         });
 
-        eventSource.onerror = () => {
-          if (step === "analyzing") {
-            setStep("complete");
-          }
-          eventSource.close();
-        };
+        if (!completed) {
+          setStep("error");
+          setError("L'analyse a été interrompue");
+        }
       } catch (err) {
         console.error("[YouTube] Analysis failed:", err);
-        setError("Impossible d'analyser cette vidéo");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Impossible d'analyser cette vidéo",
+        );
         setStep("error");
+        clarityEvent("youtube_analysis_error");
       }
     },
-    [videoUrl, getTranscript, step],
+    [videoUrl, handleSSEEvent],
   );
+
+  const startAnalysisFromTranscript = useCallback(async () => {
+    if (!transcriptText.trim()) return;
+    clarityEvent("youtube_analysis_started");
+
+    setStep("analyzing");
+    setError(null);
+    setMetadata(null);
+    setTranscript(transcriptText);
+    setAnalysis(null);
+    setStreamingText("");
+    setCurrentStatus("Analyse du transcript...");
+    setIsCached(false);
+
+    let completed = false;
+    try {
+      const response = await fetch("/api/youtube/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: transcriptText }),
+      });
+
+      if (!response.ok) {
+        const errBody = (await response.json()) as { error?: string };
+        throw new Error(errBody.error ?? "Erreur de requête");
+      }
+
+      await consumeSSEStream(response, (event, data) => {
+        if (event === "analysis") completed = true;
+        handleSSEEvent(event, data);
+      });
+
+      if (!completed) {
+        setStep("error");
+        setError("L'analyse a été interrompue");
+      }
+    } catch (err) {
+      console.error("[YouTube] Transcript analysis failed:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Impossible d'analyser le transcript",
+      );
+      setStep("error");
+    }
+  }, [transcriptText, handleSSEEvent]);
+
+  const startAnalysisFromAudio = useCallback(async () => {
+    if (!audioFile) return;
+    clarityEvent("youtube_analysis_started");
+
+    setStep("fetching");
+    setError(null);
+    setMetadata(null);
+    setTranscript(null);
+    setAnalysis(null);
+    setStreamingText("");
+    setCurrentStatus("Transcription de l'audio...");
+    setIsCached(false);
+
+    let completed = false;
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioFile);
+
+      const transcribeRes = await fetch("/api/audio/transcribe", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!transcribeRes.ok) {
+        const errBody = (await transcribeRes.json()) as { error?: string };
+        throw new Error(errBody.error ?? "Erreur de transcription");
+      }
+
+      const transcribeData = (await transcribeRes.json()) as {
+        fullText: string;
+        durationSeconds: number;
+        language: string;
+      };
+
+      setTranscript(transcribeData.fullText);
+      setStep("analyzing");
+      setCurrentStatus("Analyse du transcript...");
+
+      const response = await fetch("/api/youtube/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcript: transcribeData.fullText,
+          durationSeconds: transcribeData.durationSeconds,
+          language: transcribeData.language,
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = (await response.json()) as { error?: string };
+        throw new Error(errBody.error ?? "Erreur de requête");
+      }
+
+      await consumeSSEStream(response, (event, data) => {
+        if (event === "analysis") completed = true;
+        handleSSEEvent(event, data);
+      });
+
+      if (!completed) {
+        setStep("error");
+        setError("L'analyse a été interrompue");
+      }
+    } catch (err) {
+      console.error("[YouTube] Audio analysis failed:", err);
+      setError(
+        err instanceof Error ? err.message : "Impossible d'analyser l'audio",
+      );
+      setStep("error");
+    }
+  }, [audioFile, handleSSEEvent]);
 
   const formatNumber = (num: string | undefined) => {
     if (!num) return "N/A";
@@ -501,18 +873,121 @@ export default function YouTubeAnalysisPage() {
               Obtenez une analyse détaillée: hook, structure, rétention,
               opportunités de croissance
             </p>
-            <div className="flex gap-3">
+
+            {/* Mode selector */}
+            <div className="bg-muted/50 mb-4 flex rounded-lg border p-1">
+              {[
+                { id: "url", label: "YouTube URL", Icon: Youtube },
+                { id: "transcript", label: "Transcript", Icon: FileText },
+                { id: "audio", label: "Fichier Audio", Icon: Mic },
+              ].map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setInputMode(id as InputMode)}
+                  disabled={step === "fetching" || step === "analyzing"}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                    inputMode === id
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* URL input */}
+            {inputMode === "url" && (
               <Input
                 placeholder="https://youtube.com/watch?v=... ou ID de la vidéo"
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
-                className="flex-1"
                 disabled={step === "fetching" || step === "analyzing"}
               />
+            )}
+
+            {/* Transcript input */}
+            {inputMode === "transcript" && (
+              <Textarea
+                placeholder="Collez votre transcript ici (SRT, VTT, timestampé ou texte brut)..."
+                value={transcriptText}
+                onChange={(e) => setTranscriptText(e.target.value)}
+                className="min-h-[120px] resize-y"
+                disabled={step === "fetching" || step === "analyzing"}
+              />
+            )}
+
+            {/* Audio upload */}
+            {inputMode === "audio" && (
+              <div className="flex flex-col gap-2">
+                <label
+                  htmlFor="audio-upload"
+                  className={cn(
+                    "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors",
+                    audioFile
+                      ? "border-primary/50 bg-primary/5"
+                      : "border-muted-foreground/30 bg-muted/30 hover:border-muted-foreground/50",
+                    (step === "fetching" || step === "analyzing") &&
+                      "cursor-not-allowed opacity-50",
+                  )}
+                >
+                  {audioFile ? (
+                    <>
+                      <FileText className="text-primary size-6" />
+                      <span className="text-sm font-medium">
+                        {audioFile.name}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {(audioFile.size / 1024 / 1024).toFixed(1)} MB
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="text-muted-foreground size-6" />
+                      <span className="text-muted-foreground text-sm">
+                        Glissez un fichier audio ou cliquez ici
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        MP3, M4A, WAV, FLAC, OGG, WebM — Max 25 MB
+                      </span>
+                    </>
+                  )}
+                  <input
+                    id="audio-upload"
+                    type="file"
+                    accept=".mp3,.mp4,.m4a,.wav,.flac,.ogg,.webm,.opus,.aac"
+                    className="sr-only"
+                    onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)}
+                    disabled={step === "fetching" || step === "analyzing"}
+                  />
+                </label>
+                {audioFile && (
+                  <button
+                    onClick={() => setAudioFile(null)}
+                    className="text-muted-foreground hover:text-foreground flex items-center gap-1 self-start text-xs transition-colors"
+                  >
+                    <X className="size-3" />
+                    Supprimer
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Submit button */}
+            <div className="mt-4 flex justify-end">
               <Button
-                onClick={() => startAnalysis(false)}
+                onClick={() => {
+                  if (inputMode === "url") void startAnalysis(false);
+                  else if (inputMode === "transcript")
+                    void startAnalysisFromTranscript();
+                  else if (inputMode === "audio") void startAnalysisFromAudio();
+                }}
                 disabled={
-                  !videoUrl.trim() ||
+                  (inputMode === "url" && !videoUrl.trim()) ||
+                  (inputMode === "transcript" && !transcriptText.trim()) ||
+                  (inputMode === "audio" && !audioFile) ||
                   step === "fetching" ||
                   step === "analyzing"
                 }
@@ -531,7 +1006,8 @@ export default function YouTubeAnalysisPage() {
                 )}
               </Button>
             </div>
-            {currentStatus && step === "analyzing" && (
+
+            {currentStatus && (step === "fetching" || step === "analyzing") && (
               <div className="text-muted-foreground mt-3 flex items-center gap-2 text-sm">
                 <Loader2 className="size-4 animate-spin" />
                 {currentStatus}
@@ -593,6 +1069,16 @@ export default function YouTubeAnalysisPage() {
                       </span>
                     )}
                   </div>
+                  {metadata.resourcesUsed !== undefined &&
+                    metadata.resourcesUsed > 0 && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-sm text-violet-600 dark:text-violet-400">
+                          <BookOpen className="size-3.5" />
+                          Personnalisé avec {metadata.resourcesUsed} ressource
+                          {metadata.resourcesUsed > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    )}
                 </div>
                 <div className="flex items-center gap-3">
                   {isCached && step === "complete" && (
@@ -1342,6 +1828,15 @@ export default function YouTubeAnalysisPage() {
                     </ul>
                   </div>
                 </AnimatedCard>
+              </BlurFade>
+            )}
+
+          {analysis.resourceJustifications &&
+            analysis.resourceJustifications.length > 0 && (
+              <BlurFade delay={0.7}>
+                <ResourceJustificationsSection
+                  justifications={analysis.resourceJustifications}
+                />
               </BlurFade>
             )}
         </div>
