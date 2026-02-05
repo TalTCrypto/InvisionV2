@@ -23,7 +23,7 @@
     "pre-commit": "lint-staged",
     "pre-push": "npm run lint && npm run typecheck && npm run format:check",
     "start": "next start",
-    "test:e2e": "npx tsx tests/e2e/setup.ts && node tests/e2e/route-security.test.js && node tests/e2e/youtube-analysis.test.js",
+    "test:e2e": "npx tsx tests/e2e/setup.ts && node tests/e2e/route-security.test.js && node tests/e2e/youtube-analysis.test.js && node tests/e2e/chat-quality.test.js",
     "typecheck": "tsc --noEmit",
     "prepare": "husky"
   },

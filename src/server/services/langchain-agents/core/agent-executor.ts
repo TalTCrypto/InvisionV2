@@ -324,6 +324,21 @@ export class AgentExecutor {
         break;
       }
 
+      // Handle format error: send error message as Observation to guide LLM
+      if (parsed.type === "format_error") {
+        if (streamingFinalAnswer) {
+          yield { type: "clear", data: {} };
+        }
+
+        // Add the malformed response and error feedback to conversation
+        currentMessages.push(new AIMessage(iterationResponse));
+        currentMessages.push(
+          new HumanMessage(`Observation: ${parsed.errorMessage}`),
+        );
+        // Continue to next iteration so LLM can retry with correct format
+        continue;
+      }
+
       if (parsed.type === "tool_call" && parsed.action && parsed.actionInput) {
         // If tokens were streamed before we confirmed it's a tool call
         // (model emitted "Final Answer:" before Action), clear them.
@@ -514,11 +529,12 @@ export class AgentExecutor {
   }
 
   private parseReActResponse(response: string): {
-    type: "tool_call" | "final_answer";
+    type: "tool_call" | "final_answer" | "format_error";
     thought?: string;
     action?: string;
     actionInput?: unknown;
     content: string;
+    errorMessage?: string;
   } {
     // Tool-call check FIRST — Action + Action Input take priority.
     // The model sometimes emits "Final Answer:" before the action; checking
@@ -527,6 +543,27 @@ export class AgentExecutor {
     const actionMatch = /Action:\s*(\w+)/i.exec(response);
     const actionInputRaw = (/Action Input:\s*([\s\S]+)/i.exec(response) ??
       /^Input:\s*([\s\S]+)/im.exec(response))?.[1]?.trim();
+
+    // Detect malformed tool call: Action present but Action Input missing
+    if (actionMatch && !actionInputRaw) {
+      console.warn(
+        "[AgentExecutor] Malformed ReAct format detected: Action without Action Input",
+      );
+      return {
+        type: "format_error",
+        action: actionMatch[1]!.trim(),
+        content: response,
+        errorMessage:
+          "❌ FORMAT REACT INCORRECT détecté.\n\n" +
+          `Tu as écrit: "Action: ${actionMatch[1]}"\n` +
+          'Mais il MANQUE la ligne "Action Input:" sur la ligne suivante.\n\n' +
+          "Format correct (3 lignes séparées):\n" +
+          "Thought: [pourquoi cet outil]\n" +
+          `Action: ${actionMatch[1]}\n` +
+          'Action Input: {"mine": true}\n\n' +
+          "Recommence avec le format correct.",
+      };
+    }
 
     if (actionMatch && actionInputRaw) {
       let actionInput: unknown;

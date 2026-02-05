@@ -20,6 +20,10 @@ import { PERFORMANCE_AGENT_PROMPT } from "../prompts/system-prompts";
 import type { DocumentProcessor } from "~/server/services/langchain-processor";
 import type { InstagramReelAnalyzer } from "~/server/utils/instagram-analyzer";
 import type { YouTubeAnalyzer } from "~/server/utils/youtube-analyzer";
+import {
+  fetchResourceContext,
+  formatResourcesForPrompt,
+} from "~/server/utils/resource-context";
 
 export interface PerformanceAgentConfig {
   db: PrismaClient;
@@ -82,11 +86,29 @@ export class PerformanceAgent {
       await loader.getConnectedIntegrations(composioUserId);
     const composioTools = await loader.loadToolsForUser(composioUserId);
     this.toolRegistry.registerMultiple(composioTools);
+  }
 
+  private async buildSystemPrompt(
+    userId: string,
+    userInput: string,
+    organizationId: string,
+  ): Promise<string> {
+    const snippets = await fetchResourceContext(
+      userId,
+      userInput,
+      organizationId,
+    );
+    const resourceBlock = formatResourcesForPrompt(snippets);
+    return resourceBlock
+      ? PERFORMANCE_AGENT_PROMPT + "\n\n" + resourceBlock
+      : PERFORMANCE_AGENT_PROMPT;
+  }
+
+  private createExecutor(systemPrompt: string): void {
     this.executor = new AgentExecutor(
       "gpt-4o-mini",
       this.toolRegistry.getAll(),
-      PERFORMANCE_AGENT_PROMPT,
+      systemPrompt,
       this.memory,
       10,
       0.2,
@@ -98,7 +120,11 @@ export class PerformanceAgent {
     input: string,
     context: AgentExecutionContext,
   ): Promise<AgentResponse> {
-    await this.initComposio(context);
+    const [, systemPrompt] = await Promise.all([
+      this.initComposio(context),
+      this.buildSystemPrompt(context.userId, input, context.organizationId),
+    ]);
+    this.createExecutor(systemPrompt);
     return await this.executor.execute(input, context);
   }
 
@@ -109,7 +135,11 @@ export class PerformanceAgent {
     type: "token" | "message" | "tool" | "clear" | "end";
     data: unknown;
   }> {
-    await this.initComposio(context);
+    const [, systemPrompt] = await Promise.all([
+      this.initComposio(context),
+      this.buildSystemPrompt(context.userId, input, context.organizationId),
+    ]);
+    this.createExecutor(systemPrompt);
     yield* this.executor.stream(input, context);
   }
 

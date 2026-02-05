@@ -22,6 +22,10 @@ import { ORCHESTRATOR_SYSTEM_PROMPT } from "../prompts/system-prompts";
 import type { DocumentProcessor } from "~/server/services/langchain-processor";
 import type { InstagramReelAnalyzer } from "~/server/utils/instagram-analyzer";
 import type { YouTubeAnalyzer } from "~/server/utils/youtube-analyzer";
+import {
+  fetchResourceContext,
+  formatResourcesForPrompt,
+} from "~/server/utils/resource-context";
 
 export interface OrchestratorConfig {
   db: PrismaClient;
@@ -32,7 +36,7 @@ export interface OrchestratorConfig {
 }
 
 export class OrchestratorAgent {
-  private executor!: AgentExecutor;
+  private executor: AgentExecutor | null = null;
   private memory: ConversationMemory;
   private contextManager: ContextManager;
   private toolRegistry: ToolRegistry;
@@ -72,7 +76,6 @@ export class OrchestratorAgent {
 
   /**
    * Loads Composio tools + records which integrations are connected.
-   * Must be called before execute/stream.
    */
   private async initComposio(context: AgentExecutionContext): Promise<void> {
     const composioUserId = context.userId;
@@ -83,13 +86,30 @@ export class OrchestratorAgent {
     const composioTools = await loader.loadToolsForUser(composioUserId);
 
     this.toolRegistry.registerMultiple(composioTools);
+  }
 
-    // Build the executor NOW, after all tools (including Composio) are registered,
-    // so buildToolsDescription() sees everything.
+  /** Pre-loads resource context and returns the augmented system prompt. */
+  private async buildSystemPrompt(
+    userId: string,
+    userInput: string,
+    organizationId: string,
+  ): Promise<string> {
+    const snippets = await fetchResourceContext(
+      userId,
+      userInput,
+      organizationId,
+    );
+    const resourceBlock = formatResourcesForPrompt(snippets);
+    return resourceBlock
+      ? ORCHESTRATOR_SYSTEM_PROMPT + "\n\n" + resourceBlock
+      : ORCHESTRATOR_SYSTEM_PROMPT;
+  }
+
+  private createExecutor(systemPrompt: string): void {
     this.executor = new AgentExecutor(
       "gpt-4o-mini",
       this.toolRegistry.getAll(),
-      ORCHESTRATOR_SYSTEM_PROMPT,
+      systemPrompt,
       this.memory,
       15,
       0.3,
@@ -102,7 +122,11 @@ export class OrchestratorAgent {
     context: AgentExecutionContext,
     streamCallback?: StreamCallback,
   ): Promise<AgentResponse> {
-    await this.initComposio(context);
+    const [, systemPrompt] = await Promise.all([
+      this.initComposio(context),
+      this.buildSystemPrompt(context.userId, input, context.organizationId),
+    ]);
+    this.createExecutor(systemPrompt);
 
     return await this.executor.execute(input, context, streamCallback);
   }
@@ -115,6 +139,12 @@ export class OrchestratorAgent {
     data: unknown;
   }> {
     await this.initComposio(context);
+    const systemPrompt = await this.buildSystemPrompt(
+      context.userId,
+      input,
+      context.organizationId,
+    );
+    this.createExecutor(systemPrompt);
 
     yield* this.executor.stream(input, context);
   }
