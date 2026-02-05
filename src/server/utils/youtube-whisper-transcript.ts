@@ -103,6 +103,7 @@ async function executeYtDlp(
         const isBotDetection =
           stderr.includes("Sign in to confirm") ||
           stderr.includes("not a bot") ||
+          stderr.includes("HTTP Error 403") ||
           stderr.includes("HTTP Error 429") ||
           stderr.includes("Too Many Requests");
 
@@ -157,11 +158,13 @@ async function downloadAudio(videoId: string): Promise<{
   try {
     console.log(`[Whisper:${requestId}] Downloading audio for ${videoId}`);
 
-    // Run yt-dlp with flexible format selection
-    // Try multiple format options for compatibility
+    // Run yt-dlp with flexible format selection.
+    // ANDROID player_client bypasses 403 blocks on the default (web) client.
     await executeYtDlp([
       "-f",
       "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
+      "--extractor-args",
+      "youtube:player_client=ANDROID",
       "--no-playlist",
       "--no-warnings",
       "--write-info-json",

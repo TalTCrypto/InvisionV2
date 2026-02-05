@@ -98,6 +98,18 @@ export interface ActionableInsight {
   effort: "facile" | "moyen" | "difficile";
 }
 
+export interface ResourceLink {
+  source: string;
+  topic: string;
+  excerpt: string;
+  reasoning: string;
+}
+
+export interface ResourceJustification {
+  point: string;
+  linkedResources: ResourceLink[];
+}
+
 export interface AnalysisResult {
   overallScore: number;
   verdict: string;
@@ -113,6 +125,13 @@ export interface AnalysisResult {
   targetAudience?: string;
   recommendations?: string[];
   videoDuration: string;
+  resourceJustifications?: ResourceJustification[];
+}
+
+export interface ResourceSnippet {
+  topic: string;
+  content: string;
+  source: string;
 }
 
 export interface VideoContext {
@@ -123,6 +142,7 @@ export interface VideoContext {
   language: string;
   segments?: TranscriptSegment[];
   videoDurationSeconds?: number;
+  resourceContext?: ResourceSnippet[];
 }
 
 export type StreamCallback = (chunk: string) => void;
@@ -164,19 +184,6 @@ function getSegmentsInRange(
   );
 }
 
-/**
- * Get text content for a specific time range
- */
-function getTextInRange(
-  segments: TranscriptSegment[],
-  startSeconds: number,
-  endSeconds: number,
-): string {
-  return getSegmentsInRange(segments, startSeconds, endSeconds)
-    .map((s) => s.text)
-    .join(" ");
-}
-
 const CREATOR_SYSTEM_PROMPT = `Tu es un expert en croissance YouTube, spécialisé dans l'analyse de contenu pour les infopreneurs et créateurs de business en ligne.
 
 RÈGLES ABSOLUES DE PRÉCISION:
@@ -193,6 +200,36 @@ Tu analyses les vidéos avec une précision CHIRURGICALE pour identifier:
 - Les leviers actionnables pour améliorer les stats
 
 Ton analyse doit être BRUTALEMENT HONNÊTE, ACTIONNABLE, et BASÉE SUR LE CONTENU RÉEL.`;
+
+/**
+ * Serialise les snippets de ressources en un bloc de texte insérable dans un prompt.
+ * Regroupe par topic pour la lisibilité. Retourne une chaîne vide si pas de snippets.
+ */
+function formatResourceContext(
+  snippets: ResourceSnippet[] | undefined,
+): string {
+  if (!snippets || snippets.length === 0) return "";
+
+  const grouped = new Map<string, ResourceSnippet[]>();
+  for (const s of snippets) {
+    const list = grouped.get(s.topic) ?? [];
+    list.push(s);
+    grouped.set(s.topic, list);
+  }
+
+  const lines: string[] = [
+    "📋 CONTEXTE BUSINESS DE L'UTILISATEUR (extrait de ses ressources personnelles):",
+    "",
+  ];
+  for (const [topic, items] of grouped) {
+    lines.push(`### ${topic}`);
+    for (const item of items) {
+      lines.push(`[Source: ${item.source}] ${item.content}`);
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
+}
 
 export class YouTubeAnalyzer {
   private model: ChatOpenAI;
@@ -222,6 +259,9 @@ export class YouTubeAnalyzer {
     const videoDuration =
       context.videoDurationSeconds ?? this.estimateDuration(context.wordCount);
     const formattedDuration = formatTimestamp(videoDuration);
+    const hasResources =
+      context.resourceContext && context.resourceContext.length > 0;
+    const totalSteps = hasResources ? 7 : 6;
 
     // Create timestamped transcript if segments are available
     const timestampedTranscript =
@@ -237,7 +277,7 @@ export class YouTubeAnalyzer {
         ? formatTranscriptWithTimestamps(hookSegments)
         : context.transcript.split(/\s+/).slice(0, 500).join(" ");
 
-    onStatus?.("Étape 1/6: Analyse du Hook (0:00 - 1:00)...");
+    onStatus?.(`Étape 1/${totalSteps}: Analyse du Hook (0:00 - 1:00)...`);
     const hookResult = await this.analyzeHook(
       hookText,
       context,
@@ -246,7 +286,7 @@ export class YouTubeAnalyzer {
     );
     onStream?.(`[HOOK ANALYSIS]\n${hookResult}\n\n`);
 
-    onStatus?.("Étape 2/6: Analyse de la structure narrative...");
+    onStatus?.(`Étape 2/${totalSteps}: Analyse de la structure narrative...`);
     const structureResult = await this.analyzeStructure(
       timestampedTranscript,
       context,
@@ -256,7 +296,7 @@ export class YouTubeAnalyzer {
     );
     onStream?.(`[STRUCTURE ANALYSIS]\n${structureResult}\n\n`);
 
-    onStatus?.("Étape 3/6: Scoring des segments et rétention...");
+    onStatus?.(`Étape 3/${totalSteps}: Scoring des segments et rétention...`);
     const retentionResult = await this.analyzeRetention(
       timestampedTranscript,
       context,
@@ -265,14 +305,16 @@ export class YouTubeAnalyzer {
     );
     onStream?.(`[RETENTION ANALYSIS]\n${retentionResult}\n\n`);
 
-    onStatus?.("Étape 4/6: Opportunités de croissance...");
+    onStatus?.(`Étape 4/${totalSteps}: Opportunités de croissance...`);
     const growthResult = await this.analyzeGrowth(
       timestampedTranscript,
       context,
     );
     onStream?.(`[GROWTH OPPORTUNITIES]\n${growthResult}\n\n`);
 
-    onStatus?.("Étape 5/6: Génération des insights actionnables...");
+    onStatus?.(
+      `Étape 5/${totalSteps}: Génération des insights actionnables...`,
+    );
     const insightsResult = await this.generateInsights(
       context,
       hookResult,
@@ -283,7 +325,7 @@ export class YouTubeAnalyzer {
     );
     onStream?.(`[ACTIONABLE INSIGHTS]\n${insightsResult}\n\n`);
 
-    onStatus?.("Étape 6/6: Compilation de l'analyse finale...");
+    onStatus?.(`Étape 6/${totalSteps}: Compilation de l'analyse finale...`);
     const finalResult = await this.compileFinalAnalysis(
       context,
       hookResult,
@@ -294,6 +336,15 @@ export class YouTubeAnalyzer {
       formattedDuration,
       videoDuration,
     );
+
+    if (hasResources) {
+      onStatus?.(
+        `Étape 7/${totalSteps}: Justification par vos ressources personnelles...`,
+      );
+      finalResult.resourceJustifications =
+        await this.generateResourceJustifications(context, finalResult);
+      onStream?.("[RESOURCE JUSTIFICATIONS]\nDone\n\n");
+    }
 
     return finalResult;
   }
@@ -349,9 +400,14 @@ Analyse avec PRÉCISION et CITATIONS:
 
 Sois BRUTAL et PRÉCIS. Chaque affirmation doit être appuyée par une CITATION.`;
 
+    const resourceBlock = formatResourceContext(context.resourceContext);
+    const fullPrompt = resourceBlock
+      ? `${resourceBlock}\n⚡ INSTRUCTION DE PERSONNALISATION: Dans ton analyse du hook, évalue si le ton et le style de la vidéo sont cohérents avec la brand voice et les guidelines de communication ci-dessus. Mentionne-le dans les points forts ou faiblesses.\n\n${prompt}`
+      : prompt;
+
     const response = await this.model.invoke([
       new SystemMessage(CREATOR_SYSTEM_PROMPT),
-      new HumanMessage(prompt),
+      new HumanMessage(fullPrompt),
     ]);
 
     return typeof response.content === "string" ? response.content : "";
@@ -362,7 +418,7 @@ Sois BRUTAL et PRÉCIS. Chaque affirmation doit être appuyée par une CITATION.
     context: VideoContext,
     formattedDuration: string,
     videoDuration: number,
-    segments: TranscriptSegment[],
+    _segments: TranscriptSegment[],
   ): Promise<string> {
     // Pre-segment the video into logical parts based on timing
     const introEnd = Math.min(60, videoDuration * 0.1);
@@ -501,9 +557,14 @@ ${transcript.substring(0, 10000)}
 ## 6. ANGLES DE MONÉTISATION
 - Basés sur le contenu RÉEL de la vidéo`;
 
+    const resourceBlock = formatResourceContext(context.resourceContext);
+    const fullPrompt = resourceBlock
+      ? `${resourceBlock}\n⚡ INSTRUCTION DE PERSONNALISATION: Toutes tes suggestions de croissance (titre, thumbnail, SEO, gaps, viral, monétisation) DOIVENT être alignées avec l'avatar client, les objectifs business et le positionnement ci-dessus. Propose des angles qui parlent directement à l'audience cible identifiée dans les ressources. Si la vidéo manque de cohérence avec le positionnement, le signaler dans les gaps.\n\n${prompt}`
+      : prompt;
+
     const response = await this.model.invoke([
       new SystemMessage(CREATOR_SYSTEM_PROMPT),
-      new HumanMessage(prompt),
+      new HumanMessage(fullPrompt),
     ]);
 
     return typeof response.content === "string" ? response.content : "";
@@ -545,9 +606,14 @@ Pour chaque insight:
 
 Ordonne par IMPACT DÉCROISSANT.`;
 
+    const resourceBlock = formatResourceContext(context.resourceContext);
+    const fullPrompt = resourceBlock
+      ? `${resourceBlock}\n⚡ INSTRUCTION DE PERSONNALISATION: Priorise les insights selon les objectifs business et la stratégie contenu ci-dessus. Les actions qui alignent la vidéo avec ces objectifs doivent être catégorisées "critical" ou "high". Les quick wins doivent être concrets et directement applicables à ce business.\n\n${prompt}`
+      : prompt;
+
     const response = await this.model.invoke([
       new SystemMessage(CREATOR_SYSTEM_PROMPT),
-      new HumanMessage(prompt),
+      new HumanMessage(fullPrompt),
     ]);
 
     return typeof response.content === "string" ? response.content : "";
@@ -691,16 +757,143 @@ Fournis UNIQUEMENT un JSON valide:
 ⚠️ VÉRIFICATION: Tous les timestamps sont-ils <= ${formattedDuration}?
 IMPORTANT: Réponds UNIQUEMENT avec le JSON.`;
 
+    const resourceBlock = formatResourceContext(context.resourceContext);
+    const fullPrompt = resourceBlock
+      ? `${resourceBlock}\n⚡ INSTRUCTION DE PERSONNALISATION: Dans le "summary", mentionne explicitement comment la vidéo se positionne par rapport aux ressources business de l'utilisateur (avatar, objectifs, brand voice). Dans "recommendations", propose des ajustements concrets alignés avec ces ressources. Dans "targetAudience", utilise la définition d'avatar issue des ressources si disponible.\n\n${prompt}`
+      : prompt;
+
     const response = await this.model.invoke([
       new SystemMessage(
         "Tu compiles des analyses en JSON structuré. Réponds UNIQUEMENT avec un JSON valide. TOUS les timestamps doivent respecter la durée maximale fournie.",
       ),
-      new HumanMessage(prompt),
+      new HumanMessage(fullPrompt),
     ]);
 
     const content =
       typeof response.content === "string" ? response.content : "";
     return this.parseAnalysisResponse(content, context, formattedDuration);
+  }
+
+  /**
+   * Génère les justifications détaillées: pour chaque point clé de l'analyse
+   * personnalisée, trace le raisonnement exact vers le(s) snippet(s) de ressource
+   * qui l'ont influencé. Chaque ressource doit apparaître au moins une fois.
+   */
+  private async generateResourceJustifications(
+    context: VideoContext,
+    analysis: AnalysisResult,
+  ): Promise<ResourceJustification[]> {
+    const snippets = context.resourceContext ?? [];
+    if (snippets.length === 0) return [];
+
+    // Collecter tous les points personnalisés de l'analyse
+    const pointsToJustify: string[] = [
+      ...(analysis.summary ? [`Résumé: ${analysis.summary}`] : []),
+      ...(analysis.targetAudience
+        ? [`Audience cible identifiée: ${analysis.targetAudience}`]
+        : []),
+      ...(analysis.recommendations ?? []).map((r) => `Recommandation: ${r}`),
+      ...analysis.quickWins.map((w) => `Quick Win: ${w}`),
+      ...analysis.insights
+        .filter((i) => i.priority === "critical" || i.priority === "high")
+        .map((i) => `Insight [${i.priority}] — ${i.action}`),
+      ...(analysis.growth.titleAnalysis.suggestions ?? []).map(
+        (s) => `Suggestion de titre: ${s}`,
+      ),
+      ...(analysis.growth.contentGaps ?? []).map((g) => `Gap de contenu: ${g}`),
+      ...(analysis.hookAnalysis.strengths ?? []).map(
+        (s) => `Hook — force: ${s}`,
+      ),
+      ...(analysis.hookAnalysis.weaknesses ?? []).map(
+        (w) => `Hook — faiblesse: ${w}`,
+      ),
+    ];
+
+    // Lister toutes les ressources avec leur contenu complet pour le prompt
+    const resourceLines: string[] = [];
+    snippets.forEach((s, idx) => {
+      resourceLines.push(
+        `[R${idx + 1}] Source: "${s.source}" | Topic: ${s.topic}\nContenu: ${s.content}`,
+      );
+    });
+
+    const prompt = `Tu es un expert en traçabilité analytique. Une analyse YouTube a été générée en utilisant les ressources business suivantes de l'utilisateur. Ta tâche est de produire une justification EXHAUSTIVE et PRÉCISE: pour chaque point de l'analyse, identifie EXACTEMENT quelle(s) ressource(s) l'ont influencé et POURQUOI.
+
+═══════════════════════════════════════════
+RESSOURCES DISPONIBLES (${snippets.length} au total — TOUTES doivent être utilisées)
+═══════════════════════════════════════════
+${resourceLines.join("\n\n")}
+
+═══════════════════════════════════════════
+POINTS DE L'ANALYSE À JUSTIFIER
+═══════════════════════════════════════════
+${pointsToJustify.map((p, i) => `[P${i + 1}] ${p}`).join("\n")}
+
+═══════════════════════════════════════════
+RÈGLES ABSOLUES
+═══════════════════════════════════════════
+1. CHAQUE ressource (R1…R${snippets.length}) doit apparaître dans au moins UNE justification
+2. Les excerpts dans "excerpt" doivent être des CITATIONS EXACTES ou très proches du contenu de la ressource (jamais inventées)
+3. Le "reasoning" doit expliquer le CHAÎNE DE RAISONNEMENT: comment le contenu de la ressource a concrètement conduit à ce point de l'analyse
+4. Si un point n'est pas directement lié à une ressource, ne l'inclus pas — préfère la précision à la quantité
+5. Regroupe les points qui partagent la même source pour éviter les doublons
+
+Réponds UNIQUEMENT avec un tableau JSON valide:
+[
+  {
+    "point": "Le point de l'analyse (reprends le texte exact du point)",
+    "linkedResources": [
+      {
+        "source": "Titre exact de la ressource",
+        "topic": "Topic exact (Avatar Client / Objectifs Business / etc.)",
+        "excerpt": "Citation exacte ou très proche du contenu de la ressource",
+        "reasoning": "Explication détaillée du lien logique entre cette ressource et ce point"
+      }
+    ]
+  }
+]`;
+
+    try {
+      const response = await this.model.invoke([
+        new SystemMessage(
+          "Tu es un expert en justification analytique. Réponds UNIQUEMENT avec un JSON valide (tableau). Aucun texte avant ou après.",
+        ),
+        new HumanMessage(prompt),
+      ]);
+
+      const content =
+        typeof response.content === "string" ? response.content : "";
+      const jsonMatch = /\[[\s\S]*\]/.exec(content);
+      if (!jsonMatch) return [];
+
+      const parsed = JSON.parse(jsonMatch[0]) as Array<{
+        point?: string;
+        linkedResources?: Array<{
+          source?: string;
+          topic?: string;
+          excerpt?: string;
+          reasoning?: string;
+        }>;
+      }>;
+
+      return parsed
+        .filter((j) => j.point && j.linkedResources?.length)
+        .map((j) => ({
+          point: j.point!,
+          linkedResources: (j.linkedResources ?? [])
+            .filter((r) => r.source && r.excerpt && r.reasoning)
+            .map((r) => ({
+              source: r.source!,
+              topic: r.topic ?? "",
+              excerpt: r.excerpt!,
+              reasoning: r.reasoning!,
+            })),
+        }))
+        .filter((j) => j.linkedResources.length > 0);
+    } catch (error) {
+      console.error("Resource justification generation failed:", error);
+      return [];
+    }
   }
 
   private parseAnalysisResponse(
