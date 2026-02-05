@@ -36,7 +36,7 @@ export interface OrchestratorConfig {
 }
 
 export class OrchestratorAgent {
-  private executor: AgentExecutor | null = null;
+  private executor!: AgentExecutor;
   private memory: ConversationMemory;
   private contextManager: ContextManager;
   private toolRegistry: ToolRegistry;
