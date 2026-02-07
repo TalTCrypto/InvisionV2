@@ -8,10 +8,11 @@
  * - Scalable for multiple concurrent users
  * - Automatic cleanup of temp files
  * - Robust format selection with fallbacks
+ * - Multi-strategy bot detection bypass (cookies, player clients)
  */
 
 import { spawn } from "child_process";
-import { readFile, mkdtemp, readdir, rm } from "fs/promises";
+import { readFile, mkdtemp, readdir, rm, access } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
@@ -22,6 +23,7 @@ import type {
   TranscriptResult,
 } from "./youtube-transcript";
 import { extractVideoId } from "./youtube-transcript";
+import { homedir, platform } from "os";
 
 interface WhisperSegment {
   id: number;
@@ -45,8 +47,113 @@ interface YtDlpMetadata {
   description?: string;
 }
 
+/**
+ * Download strategies to bypass YouTube bot detection
+ * Ordered by reliability (most reliable first)
+ */
+type DownloadStrategy =
+  | { type: "cookies"; browser: string }
+  | { type: "player_client"; client: string };
+
+/**
+ * Detect available browsers for cookie extraction
+ */
+async function detectAvailableBrowsers(): Promise<string[]> {
+  const browsers = ["chrome", "firefox", "edge", "safari", "brave"];
+  const available: string[] = [];
+
+  // Browser cookie paths by OS and browser
+  const cookiePaths: Record<string, Record<string, string>> = {
+    darwin: {
+      // macOS
+      chrome: join(
+        homedir(),
+        "Library/Application Support/Google/Chrome/Default/Cookies",
+      ),
+      firefox: join(homedir(), "Library/Application Support/Firefox/Profiles"),
+      edge: join(
+        homedir(),
+        "Library/Application Support/Microsoft Edge/Default/Cookies",
+      ),
+      safari: join(homedir(), "Library/Cookies/Cookies.binarycookies"),
+      brave: join(
+        homedir(),
+        "Library/Application Support/BraveSoftware/Brave-Browser/Default/Cookies",
+      ),
+    },
+    linux: {
+      chrome: join(homedir(), ".config/google-chrome/Default/Cookies"),
+      firefox: join(homedir(), ".mozilla/firefox"),
+      edge: join(homedir(), ".config/microsoft-edge/Default/Cookies"),
+      brave: join(
+        homedir(),
+        ".config/BraveSoftware/Brave-Browser/Default/Cookies",
+      ),
+    },
+    win32: {
+      chrome: join(
+        homedir(),
+        "AppData/Local/Google/Chrome/User Data/Default/Network/Cookies",
+      ),
+      firefox: join(homedir(), "AppData/Roaming/Mozilla/Firefox/Profiles"),
+      edge: join(
+        homedir(),
+        "AppData/Local/Microsoft/Edge/User Data/Default/Network/Cookies",
+      ),
+      brave: join(
+        homedir(),
+        "AppData/Local/BraveSoftware/Brave-Browser/User Data/Default/Network/Cookies",
+      ),
+    },
+  };
+
+  const osPaths = cookiePaths[platform()] ?? {};
+
+  for (const browser of browsers) {
+    const path = osPaths[browser];
+    if (!path) continue;
+
+    try {
+      await access(path);
+      available.push(browser);
+    } catch {
+      // Browser not available
+    }
+  }
+
+  return available;
+}
+
+/**
+ * Get download strategies in order of preference
+ */
+async function getDownloadStrategies(): Promise<DownloadStrategy[]> {
+  const strategies: DownloadStrategy[] = [];
+
+  // 1. Try browser cookies first (most reliable)
+  const browsers = await detectAvailableBrowsers();
+  for (const browser of browsers) {
+    strategies.push({ type: "cookies", browser });
+  }
+
+  // 2. Fallback to various player clients
+  const playerClients = [
+    "ANDROID_TESTSUITE", // Most reliable client
+    "ANDROID_EMBEDDED", // Embedded player
+    "IOS", // iOS client
+    "ANDROID", // Standard Android (current default)
+  ];
+
+  for (const client of playerClients) {
+    strategies.push({ type: "player_client", client });
+  }
+
+  return strategies;
+}
+
 async function executeYtDlp(
   args: string[],
+  strategy?: DownloadStrategy,
   timeoutMs = 120000,
   retryCount = 0,
   maxRetries = 3,
@@ -58,8 +165,22 @@ async function executeYtDlp(
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
   ];
 
+  // Build strategy-specific args
+  const strategyArgs: string[] = [];
+  if (strategy) {
+    if (strategy.type === "cookies") {
+      strategyArgs.push("--cookies-from-browser", strategy.browser);
+    } else if (strategy.type === "player_client") {
+      strategyArgs.push(
+        "--extractor-args",
+        `youtube:player_client=${strategy.client}`,
+      );
+    }
+  }
+
   const enhancedArgs = [
     ...args,
+    ...strategyArgs,
     "--user-agent",
     userAgents[retryCount % userAgents.length]!,
     "--sleep-requests",
@@ -113,7 +234,13 @@ async function executeYtDlp(
             `[yt-dlp] Bot detection, retrying in ${backoffDelay}ms (attempt ${retryCount + 1}/${maxRetries})`,
           );
           setTimeout(() => {
-            void executeYtDlp(args, timeoutMs, retryCount + 1, maxRetries)
+            void executeYtDlp(
+              args,
+              strategy,
+              timeoutMs,
+              retryCount + 1,
+              maxRetries,
+            )
               .then(resolve)
               .catch((err: unknown) =>
                 reject(err instanceof Error ? err : new Error(String(err))),
@@ -130,6 +257,58 @@ async function executeYtDlp(
       reject(new Error(`Failed to spawn yt-dlp: ${err.message}`));
     });
   });
+}
+
+/**
+ * Execute yt-dlp with fallback strategies
+ * Tries multiple approaches until one succeeds
+ */
+async function executeYtDlpWithFallback(
+  args: string[],
+  requestId: string,
+): Promise<{ stdout: string; stderr: string }> {
+  const strategies = await getDownloadStrategies();
+  const errors: Array<{ strategy: string; error: string }> = [];
+
+  for (let i = 0; i < strategies.length; i++) {
+    const strategy = strategies[i]!;
+    const strategyName =
+      strategy.type === "cookies"
+        ? `cookies:${strategy.browser}`
+        : `player:${strategy.client}`;
+
+    try {
+      console.log(
+        `[Whisper:${requestId}] Trying strategy ${i + 1}/${strategies.length}: ${strategyName}`,
+      );
+      const result = await executeYtDlp(args, strategy);
+      console.log(
+        `[Whisper:${requestId}] Success with strategy: ${strategyName}`,
+      );
+      return result;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      errors.push({ strategy: strategyName, error: errorMsg });
+      console.log(
+        `[Whisper:${requestId}] Strategy ${strategyName} failed: ${errorMsg.substring(0, 100)}`,
+      );
+
+      // If this is not the last strategy, continue to next
+      if (i < strategies.length - 1) {
+        // Small delay before trying next strategy
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        continue;
+      }
+    }
+  }
+
+  // All strategies failed
+  const errorSummary = errors
+    .map((e) => `${e.strategy}: ${e.error.substring(0, 80)}`)
+    .join("\n");
+  throw new Error(
+    `All ${strategies.length} download strategies failed:\n${errorSummary}`,
+  );
 }
 
 /**
@@ -158,20 +337,20 @@ async function downloadAudio(videoId: string): Promise<{
   try {
     console.log(`[Whisper:${requestId}] Downloading audio for ${videoId}`);
 
-    // Run yt-dlp with flexible format selection.
-    // ANDROID player_client bypasses 403 blocks on the default (web) client.
-    await executeYtDlp([
-      "-f",
-      "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
-      "--extractor-args",
-      "youtube:player_client=ANDROID",
-      "--no-playlist",
-      "--no-warnings",
-      "--write-info-json",
-      "-o",
-      join(tempDir, "%(id)s.%(ext)s"),
-      url,
-    ]);
+    // Run yt-dlp with multi-strategy fallback to bypass bot detection
+    await executeYtDlpWithFallback(
+      [
+        "-f",
+        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
+        "--no-playlist",
+        "--no-warnings",
+        "--write-info-json",
+        "-o",
+        join(tempDir, "%(id)s.%(ext)s"),
+        url,
+      ],
+      requestId,
+    );
 
     // Find the downloaded files
     const files = await readdir(tempDir);
