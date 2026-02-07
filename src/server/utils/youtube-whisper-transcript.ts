@@ -48,37 +48,73 @@ interface YtDlpMetadata {
 
 /**
  * Download strategies to bypass YouTube bot detection
- * Uses multiple player clients + techniques without requiring user authentication
+ * Uses multiple player clients + format variations for maximum reliability
  */
 type DownloadStrategy = {
   type: "player_client";
   client: string;
+  format: string; // Audio format selector optimized for this client
   extraArgs?: string[];
 };
 
 /**
  * Get download strategies in order of preference
- * No cookies/authentication required - uses only player client variations
+ * Each strategy uses client-optimized format selectors
  */
 function getDownloadStrategies(): DownloadStrategy[] {
   return [
-    // 1. ANDROID_TESTSUITE - Most reliable, used internally by YouTube
-    { type: "player_client", client: "ANDROID_TESTSUITE" },
+    // 1. ANDROID - Most reliable in production (confirmed working)
+    // Uses flexible format selection for best compatibility
+    {
+      type: "player_client",
+      client: "ANDROID",
+      format: "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
+    },
 
-    // 2. ANDROID_EMBEDDED - Embedded player, less tracked
-    { type: "player_client", client: "ANDROID_EMBEDDED" },
+    // 2. ANDROID_TESTSUITE - Internal client, try with looser format requirements
+    {
+      type: "player_client",
+      client: "ANDROID_TESTSUITE",
+      format: "bestaudio/best",
+    },
 
-    // 3. IOS - Alternative mobile client
-    { type: "player_client", client: "IOS" },
+    // 3. ANDROID_EMBEDDED - Embedded player with basic format
+    {
+      type: "player_client",
+      client: "ANDROID_EMBEDDED",
+      format: "worst[ext=m4a]/worst/bestaudio/best",
+    },
 
-    // 4. MWEB - Mobile web client
-    { type: "player_client", client: "MWEB" },
+    // 4. IOS - iOS client with compatible formats
+    {
+      type: "player_client",
+      client: "IOS",
+      format: "bestaudio/best",
+      extraArgs: ["--extractor-args", "youtube:player_skip=configs"],
+    },
 
-    // 5. ANDROID - Standard fallback
-    { type: "player_client", client: "ANDROID" },
+    // 5. MWEB - Mobile web with any available format
+    {
+      type: "player_client",
+      client: "MWEB",
+      format: "bestaudio/best",
+      extraArgs: ["--extractor-args", "youtube:player_skip=configs"],
+    },
 
-    // 6. WEB_EMBEDDED - Last resort
-    { type: "player_client", client: "WEB_EMBEDDED" },
+    // 6. WEB - Standard web client (often blocked but worth trying)
+    {
+      type: "player_client",
+      client: "WEB",
+      format: "bestaudio[ext=webm]/bestaudio/best",
+    },
+
+    // 7. No player client specified - let yt-dlp decide
+    // This sometimes works when specific clients fail
+    {
+      type: "player_client",
+      client: "",
+      format: "bestaudio/best",
+    },
   ];
 }
 
@@ -99,15 +135,21 @@ async function executeYtDlp(
   // Build strategy-specific args
   const strategyArgs: string[] = [];
   if (strategy) {
-    strategyArgs.push(
-      "--extractor-args",
-      `youtube:player_client=${strategy.client}`,
-    );
+    // Only add player_client if specified (empty string means no client)
+    if (strategy.client) {
+      strategyArgs.push(
+        "--extractor-args",
+        `youtube:player_client=${strategy.client}`,
+      );
+    }
     // Add any extra args from strategy
     if (strategy.extraArgs) {
       strategyArgs.push(...strategy.extraArgs);
     }
   }
+
+  // Add random jitter to sleep time (1-3 seconds) to avoid pattern detection
+  const sleepTime = Math.floor(Math.random() * 3) + 1;
 
   const enhancedArgs = [
     ...args,
@@ -115,7 +157,11 @@ async function executeYtDlp(
     "--user-agent",
     userAgents[retryCount % userAgents.length]!,
     "--sleep-requests",
+    sleepTime.toString(),
+    "--sleep-interval",
     "1",
+    "--max-sleep-interval",
+    "5",
     "--extractor-retries",
     "5",
     "--fragment-retries",
@@ -192,10 +238,10 @@ async function executeYtDlp(
 
 /**
  * Execute yt-dlp with fallback strategies
- * Tries multiple player clients until one succeeds
+ * Tries multiple player clients + format combinations until one succeeds
  */
 async function executeYtDlpWithFallback(
-  args: string[],
+  baseArgs: string[], // Args without -f format
   requestId: string,
 ): Promise<{ stdout: string; stderr: string }> {
   const strategies = getDownloadStrategies();
@@ -203,28 +249,38 @@ async function executeYtDlpWithFallback(
 
   for (let i = 0; i < strategies.length; i++) {
     const strategy = strategies[i]!;
-    const strategyName = `player:${strategy.client}`;
+    const strategyName = strategy.client
+      ? `player:${strategy.client}`
+      : "default";
 
     try {
       console.log(
-        `[Whisper:${requestId}] Trying strategy ${i + 1}/${strategies.length}: ${strategyName}`,
+        `[Whisper:${requestId}] Trying strategy ${i + 1}/${strategies.length}: ${strategyName} (format: ${strategy.format.substring(0, 30)}...)`,
       );
-      const result = await executeYtDlp(args, strategy);
+
+      // Build args with strategy-specific format
+      const argsWithFormat = ["-f", strategy.format, ...baseArgs];
+
+      const result = await executeYtDlp(argsWithFormat, strategy);
       console.log(
-        `[Whisper:${requestId}] Success with strategy: ${strategyName}`,
+        `[Whisper:${requestId}] ✅ Success with strategy: ${strategyName}`,
       );
       return result;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       errors.push({ strategy: strategyName, error: errorMsg });
       console.log(
-        `[Whisper:${requestId}] Strategy ${strategyName} failed: ${errorMsg.substring(0, 100)}`,
+        `[Whisper:${requestId}] ❌ Strategy ${strategyName} failed: ${errorMsg.substring(0, 120)}`,
       );
 
       // If this is not the last strategy, continue to next
       if (i < strategies.length - 1) {
-        // Small delay before trying next strategy
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // Random delay between 1-3 seconds to avoid pattern detection
+        const delay = Math.floor(Math.random() * 2000) + 1000;
+        console.log(
+          `[Whisper:${requestId}] Waiting ${delay}ms before next attempt...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
     }
@@ -232,7 +288,9 @@ async function executeYtDlpWithFallback(
 
   // All strategies failed
   const errorSummary = errors
-    .map((e) => `${e.strategy}: ${e.error.substring(0, 80)}`)
+    .map(
+      (e, idx) => `  ${idx + 1}. ${e.strategy}: ${e.error.substring(0, 100)}`,
+    )
     .join("\n");
   throw new Error(
     `All ${strategies.length} download strategies failed:\n${errorSummary}`,
@@ -266,10 +324,9 @@ async function downloadAudio(videoId: string): Promise<{
     console.log(`[Whisper:${requestId}] Downloading audio for ${videoId}`);
 
     // Run yt-dlp with multi-strategy fallback to bypass bot detection
+    // Format is added by each strategy in executeYtDlpWithFallback
     await executeYtDlpWithFallback(
       [
-        "-f",
-        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
         "--no-playlist",
         "--no-warnings",
         "--write-info-json",
