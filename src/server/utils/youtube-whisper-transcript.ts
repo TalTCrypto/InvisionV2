@@ -12,7 +12,7 @@
  */
 
 import { spawn } from "child_process";
-import { readFile, mkdtemp, readdir, rm, access } from "fs/promises";
+import { readFile, mkdtemp, readdir, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
@@ -23,7 +23,6 @@ import type {
   TranscriptResult,
 } from "./youtube-transcript";
 import { extractVideoId } from "./youtube-transcript";
-import { homedir, platform } from "os";
 
 interface WhisperSegment {
   id: number;
@@ -49,106 +48,38 @@ interface YtDlpMetadata {
 
 /**
  * Download strategies to bypass YouTube bot detection
- * Ordered by reliability (most reliable first)
+ * Uses multiple player clients + techniques without requiring user authentication
  */
-type DownloadStrategy =
-  | { type: "cookies"; browser: string }
-  | { type: "player_client"; client: string };
-
-/**
- * Detect available browsers for cookie extraction
- */
-async function detectAvailableBrowsers(): Promise<string[]> {
-  const browsers = ["chrome", "firefox", "edge", "safari", "brave"];
-  const available: string[] = [];
-
-  // Browser cookie paths by OS and browser
-  const cookiePaths: Record<string, Record<string, string>> = {
-    darwin: {
-      // macOS
-      chrome: join(
-        homedir(),
-        "Library/Application Support/Google/Chrome/Default/Cookies",
-      ),
-      firefox: join(homedir(), "Library/Application Support/Firefox/Profiles"),
-      edge: join(
-        homedir(),
-        "Library/Application Support/Microsoft Edge/Default/Cookies",
-      ),
-      safari: join(homedir(), "Library/Cookies/Cookies.binarycookies"),
-      brave: join(
-        homedir(),
-        "Library/Application Support/BraveSoftware/Brave-Browser/Default/Cookies",
-      ),
-    },
-    linux: {
-      chrome: join(homedir(), ".config/google-chrome/Default/Cookies"),
-      firefox: join(homedir(), ".mozilla/firefox"),
-      edge: join(homedir(), ".config/microsoft-edge/Default/Cookies"),
-      brave: join(
-        homedir(),
-        ".config/BraveSoftware/Brave-Browser/Default/Cookies",
-      ),
-    },
-    win32: {
-      chrome: join(
-        homedir(),
-        "AppData/Local/Google/Chrome/User Data/Default/Network/Cookies",
-      ),
-      firefox: join(homedir(), "AppData/Roaming/Mozilla/Firefox/Profiles"),
-      edge: join(
-        homedir(),
-        "AppData/Local/Microsoft/Edge/User Data/Default/Network/Cookies",
-      ),
-      brave: join(
-        homedir(),
-        "AppData/Local/BraveSoftware/Brave-Browser/User Data/Default/Network/Cookies",
-      ),
-    },
-  };
-
-  const osPaths = cookiePaths[platform()] ?? {};
-
-  for (const browser of browsers) {
-    const path = osPaths[browser];
-    if (!path) continue;
-
-    try {
-      await access(path);
-      available.push(browser);
-    } catch {
-      // Browser not available
-    }
-  }
-
-  return available;
-}
+type DownloadStrategy = {
+  type: "player_client";
+  client: string;
+  extraArgs?: string[];
+};
 
 /**
  * Get download strategies in order of preference
+ * No cookies/authentication required - uses only player client variations
  */
-async function getDownloadStrategies(): Promise<DownloadStrategy[]> {
-  const strategies: DownloadStrategy[] = [];
+function getDownloadStrategies(): DownloadStrategy[] {
+  return [
+    // 1. ANDROID_TESTSUITE - Most reliable, used internally by YouTube
+    { type: "player_client", client: "ANDROID_TESTSUITE" },
 
-  // 1. Try browser cookies first (most reliable)
-  const browsers = await detectAvailableBrowsers();
-  for (const browser of browsers) {
-    strategies.push({ type: "cookies", browser });
-  }
+    // 2. ANDROID_EMBEDDED - Embedded player, less tracked
+    { type: "player_client", client: "ANDROID_EMBEDDED" },
 
-  // 2. Fallback to various player clients
-  const playerClients = [
-    "ANDROID_TESTSUITE", // Most reliable client
-    "ANDROID_EMBEDDED", // Embedded player
-    "IOS", // iOS client
-    "ANDROID", // Standard Android (current default)
+    // 3. IOS - Alternative mobile client
+    { type: "player_client", client: "IOS" },
+
+    // 4. MWEB - Mobile web client
+    { type: "player_client", client: "MWEB" },
+
+    // 5. ANDROID - Standard fallback
+    { type: "player_client", client: "ANDROID" },
+
+    // 6. WEB_EMBEDDED - Last resort
+    { type: "player_client", client: "WEB_EMBEDDED" },
   ];
-
-  for (const client of playerClients) {
-    strategies.push({ type: "player_client", client });
-  }
-
-  return strategies;
 }
 
 async function executeYtDlp(
@@ -168,13 +99,13 @@ async function executeYtDlp(
   // Build strategy-specific args
   const strategyArgs: string[] = [];
   if (strategy) {
-    if (strategy.type === "cookies") {
-      strategyArgs.push("--cookies-from-browser", strategy.browser);
-    } else if (strategy.type === "player_client") {
-      strategyArgs.push(
-        "--extractor-args",
-        `youtube:player_client=${strategy.client}`,
-      );
+    strategyArgs.push(
+      "--extractor-args",
+      `youtube:player_client=${strategy.client}`,
+    );
+    // Add any extra args from strategy
+    if (strategy.extraArgs) {
+      strategyArgs.push(...strategy.extraArgs);
     }
   }
 
@@ -261,21 +192,18 @@ async function executeYtDlp(
 
 /**
  * Execute yt-dlp with fallback strategies
- * Tries multiple approaches until one succeeds
+ * Tries multiple player clients until one succeeds
  */
 async function executeYtDlpWithFallback(
   args: string[],
   requestId: string,
 ): Promise<{ stdout: string; stderr: string }> {
-  const strategies = await getDownloadStrategies();
+  const strategies = getDownloadStrategies();
   const errors: Array<{ strategy: string; error: string }> = [];
 
   for (let i = 0; i < strategies.length; i++) {
     const strategy = strategies[i]!;
-    const strategyName =
-      strategy.type === "cookies"
-        ? `cookies:${strategy.browser}`
-        : `player:${strategy.client}`;
+    const strategyName = `player:${strategy.client}`;
 
     try {
       console.log(
