@@ -129,13 +129,18 @@ export async function GET(req: NextRequest) {
       async start(controller) {
         const encoder = new TextEncoder();
 
+        let isClosed = false;
+
         const sendSSE = (data: unknown, event?: string) => {
+          if (isClosed) return; // Skip if stream is closed
+
           const eventLine = event ? `event: ${event}\n` : "";
           const dataLine = `data: ${JSON.stringify(data)}\n\n`;
           try {
             controller.enqueue(encoder.encode(eventLine + dataLine));
           } catch (error) {
-            console.error("Error sending SSE:", error);
+            // Stream was closed by client (normal when user navigates away)
+            isClosed = true;
           }
         };
 
@@ -215,6 +220,7 @@ export async function GET(req: NextRequest) {
 
           setTimeout(() => {
             try {
+              isClosed = true;
               controller.close();
             } catch {
               // Ignore close errors
@@ -228,7 +234,12 @@ export async function GET(req: NextRequest) {
             },
             "error",
           );
-          controller.close();
+          try {
+            isClosed = true;
+            controller.close();
+          } catch {
+            // Ignore close errors
+          }
         }
       },
     });
@@ -301,13 +312,18 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         const encoder = new TextEncoder();
 
+        let isClosed = false;
+
         const sendSSE = (data: unknown, event?: string) => {
+          if (isClosed) return; // Skip if stream is closed
+
           const eventLine = event ? `event: ${event}\n` : "";
           const dataLine = `data: ${JSON.stringify(data)}\n\n`;
           try {
             controller.enqueue(encoder.encode(eventLine + dataLine));
           } catch (error) {
-            console.error("Error sending SSE:", error);
+            // Stream was closed by client (normal when user navigates away)
+            isClosed = true;
           }
         };
 
@@ -375,6 +391,7 @@ export async function POST(req: NextRequest) {
 
           setTimeout(() => {
             try {
+              isClosed = true;
               controller.close();
             } catch {
               // Ignore close errors
