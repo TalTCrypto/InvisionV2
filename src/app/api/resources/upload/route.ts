@@ -53,41 +53,29 @@ async function parsePDF(buffer: Buffer): Promise<{
   content: string;
   pageCount: number;
 }> {
-  // pdf-parse v2 uses a class-based API
-  const { PDFParse } = (await import("pdf-parse")) as {
-    PDFParse: new (opts: { data: Uint8Array; verbosity: number }) => {
-      load: () => Promise<void>;
-      getText: () => Promise<unknown>;
-    };
-  };
-  const parser = new PDFParse({ data: new Uint8Array(buffer), verbosity: 0 });
-  await parser.load();
+  // unpdf: server-side PDF extraction — no worker, no browser deps, Railway-safe
+  const { extractText } = await import("unpdf");
+  const { totalPages, text } = await extractText(new Uint8Array(buffer), {
+    mergePages: false,
+  });
 
-  const textResult = (await parser.getText()) as {
-    pages: { text: string; num: number }[];
-    text: string;
-    total: number;
-  };
-
+  const pages = text;
   let content = "";
 
-  // Build structured output with page markers for precision retrieval
-  if (textResult.pages.length > 0) {
-    for (const page of textResult.pages) {
-      const pageText = page.text.trim();
-      if (pageText) {
-        content += `\n[PAGE ${page.num}]\n${pageText}\n`;
-      }
+  for (let i = 0; i < pages.length; i++) {
+    const pageText = pages[i]?.trim();
+    if (pageText) {
+      content += `\n[PAGE ${i + 1}]\n${pageText}\n`;
     }
   }
 
-  if (!content.trim()) {
-    content = textResult.text;
+  if (!content.trim() && pages.length > 0) {
+    content = pages.join("\n");
   }
 
   return {
     content: content.trim(),
-    pageCount: textResult.total,
+    pageCount: totalPages,
   };
 }
 
