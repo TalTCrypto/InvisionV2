@@ -108,6 +108,8 @@ export default function RessourcesPage() {
     category: "",
     content: "",
   });
+  const [fileUploading, setFileUploading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const utils = api.useUtils();
 
@@ -179,6 +181,8 @@ export default function RessourcesPage() {
   const resetForm = () => {
     setFormData({ title: "", category: "", content: "" });
     setSelectedResource(null);
+    setFileError(null);
+    setFileUploading(false);
   };
 
   const handleCreate = () => {
@@ -479,15 +483,16 @@ export default function RessourcesPage() {
       )}
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Créer une ressource</DialogTitle>
             <DialogDescription>
               Ajoutez une nouvelle ressource business qui sera traitée
-              automatiquement.
+              automatiquement. Vous pouvez coller du texte ou importer un
+              fichier (PDF, CSV, TXT, SRT, DOCX).
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 space-y-4 overflow-y-auto pr-1">
             <div>
               <Label htmlFor="title">Titre</Label>
               <Input
@@ -511,6 +516,67 @@ export default function RessourcesPage() {
               />
             </div>
             <div>
+              <Label htmlFor="file-upload">Importer un fichier</Label>
+              <Input
+                id="file-upload"
+                type="file"
+                accept=".pdf,.csv,.txt,.srt,.docx,.doc,.json,.md,.tsv"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setFileUploading(true);
+                  setFileError(null);
+                  try {
+                    const formPayload = new FormData();
+                    formPayload.append("file", file);
+                    const res = await fetch("/api/resources/upload", {
+                      method: "POST",
+                      body: formPayload,
+                    });
+                    if (!res.ok) {
+                      const err = (await res.json()) as { error?: string };
+                      throw new Error(
+                        err.error ?? "Erreur lors du parsing du fichier",
+                      );
+                    }
+                    const data = (await res.json()) as {
+                      content: string;
+                      metadata: {
+                        fileName: string;
+                        fileType: string;
+                        pageCount?: number;
+                        rowCount?: number;
+                      };
+                    };
+                    setFormData((prev) => ({
+                      ...prev,
+                      content: data.content,
+                      title: prev.title || file.name.replace(/\.[^.]+$/, ""),
+                    }));
+                  } catch (err) {
+                    setFileError(
+                      err instanceof Error
+                        ? err.message
+                        : "Impossible de lire le fichier",
+                    );
+                  } finally {
+                    setFileUploading(false);
+                  }
+                }}
+                disabled={fileUploading}
+                className="cursor-pointer"
+              />
+              {fileUploading && (
+                <div className="mt-1 flex items-center gap-2 text-sm text-amber-600">
+                  <Loader2 className="size-3 animate-spin" />
+                  Extraction du contenu...
+                </div>
+              )}
+              {fileError && (
+                <p className="mt-1 text-sm text-red-500">{fileError}</p>
+              )}
+            </div>
+            <div>
               <Label htmlFor="content">Contenu</Label>
               <Textarea
                 id="content"
@@ -520,11 +586,17 @@ export default function RessourcesPage() {
                 }
                 placeholder="Collez ici le contenu de votre ressource..."
                 rows={12}
-                className="font-mono text-sm"
+                className="max-h-[40vh] font-mono text-sm"
               />
+              {formData.content.length > 0 && (
+                <p className="text-muted-foreground mt-1 text-xs">
+                  {formData.content.length.toLocaleString()} caractères •{" "}
+                  {formData.content.split(/\s+/).length.toLocaleString()} mots
+                </p>
+              )}
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 border-t pt-4">
             <Button
               variant="outline"
               onClick={() => {
@@ -539,7 +611,8 @@ export default function RessourcesPage() {
               disabled={
                 !formData.title.trim() ||
                 !formData.content.trim() ||
-                createMutation.isPending
+                createMutation.isPending ||
+                fileUploading
               }
             >
               {createMutation.isPending && (
@@ -552,14 +625,14 @@ export default function RessourcesPage() {
       </Dialog>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Modifier la ressource</DialogTitle>
             <DialogDescription>
               Modifiez les informations de votre ressource.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 space-y-4 overflow-y-auto pr-1">
             <div>
               <Label htmlFor="edit-title">Titre</Label>
               <Input
@@ -589,11 +662,17 @@ export default function RessourcesPage() {
                   setFormData({ ...formData, content: e.target.value })
                 }
                 rows={12}
-                className="font-mono text-sm"
+                className="max-h-[40vh] font-mono text-sm"
               />
+              {formData.content.length > 0 && (
+                <p className="text-muted-foreground mt-1 text-xs">
+                  {formData.content.length.toLocaleString()} caractères •{" "}
+                  {formData.content.split(/\s+/).length.toLocaleString()} mots
+                </p>
+              )}
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 border-t pt-4">
             <Button
               variant="outline"
               onClick={() => {
