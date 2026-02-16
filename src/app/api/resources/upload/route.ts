@@ -53,42 +53,41 @@ async function parsePDF(buffer: Buffer): Promise<{
   content: string;
   pageCount: number;
 }> {
-  const pdfParseModule: {
-    default?: (buf: Buffer) => Promise<{ text: string; numpages: number }>;
-  } = await import("pdf-parse");
-  const pdfParse =
-    pdfParseModule.default ??
-    (pdfParseModule as unknown as (
-      buf: Buffer,
-    ) => Promise<{ text: string; numpages: number }>);
-  const data = await pdfParse(buffer);
+  // pdf-parse v2 uses a class-based API
+  const { PDFParse } = (await import("pdf-parse")) as {
+    PDFParse: new (opts: { data: Uint8Array; verbosity: number }) => {
+      load: () => Promise<void>;
+      getText: () => Promise<unknown>;
+    };
+  };
+  const parser = new PDFParse({ data: new Uint8Array(buffer), verbosity: 0 });
+  await parser.load();
 
-  // pdf-parse gives us all text. We add page markers for precision.
-  // Re-parse to get per-page content
+  const textResult = (await parser.getText()) as {
+    pages: { text: string; num: number }[];
+    text: string;
+    total: number;
+  };
+
   let content = "";
-  const pageTexts: string[] = [];
 
-  // pdf-parse provides data.text as concatenated text
-  // We use the raw page data for structured output
-  if (data.numpages && data.text) {
-    // Split text by form feed characters (page breaks) if present
-    const pages = data.text.split("\f");
-    for (let i = 0; i < pages.length; i++) {
-      const pageText = pages[i]?.trim();
+  // Build structured output with page markers for precision retrieval
+  if (textResult.pages.length > 0) {
+    for (const page of textResult.pages) {
+      const pageText = page.text.trim();
       if (pageText) {
-        pageTexts.push(pageText);
-        content += `\n[PAGE ${i + 1}]\n${pageText}\n`;
+        content += `\n[PAGE ${page.num}]\n${pageText}\n`;
       }
     }
   }
 
   if (!content.trim()) {
-    content = data.text;
+    content = textResult.text;
   }
 
   return {
     content: content.trim(),
-    pageCount: data.numpages,
+    pageCount: textResult.total,
   };
 }
 
