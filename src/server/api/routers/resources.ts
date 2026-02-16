@@ -151,8 +151,8 @@ export const resourcesRouter = createTRPCRouter({
           .string()
           .min(1, "Le contenu est requis")
           .max(
-            1000000,
-            "Le contenu ne peut pas dépasser 1 million de caractères",
+            5000000,
+            "Le contenu ne peut pas dépasser 5 millions de caractères",
           ),
       }),
     )
@@ -213,8 +213,8 @@ export const resourcesRouter = createTRPCRouter({
           .string()
           .min(1)
           .max(
-            1000000,
-            "Le contenu ne peut pas dépasser 1 million de caractères",
+            5000000,
+            "Le contenu ne peut pas dépasser 5 millions de caractères",
           )
           .optional(),
       }),
