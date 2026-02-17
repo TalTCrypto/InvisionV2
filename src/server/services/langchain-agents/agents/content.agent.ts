@@ -110,6 +110,7 @@ export class ContentAgent {
       this.toolRegistry.getAll(),
       systemPrompt,
       this.memory,
+      this.config.db,
       8,
       0.7,
       this.connectedIntegrations,

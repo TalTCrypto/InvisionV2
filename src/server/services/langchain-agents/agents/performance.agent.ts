@@ -110,6 +110,7 @@ export class PerformanceAgent {
       this.toolRegistry.getAll(),
       systemPrompt,
       this.memory,
+      this.config.db,
       10,
       0.2,
       this.connectedIntegrations,
