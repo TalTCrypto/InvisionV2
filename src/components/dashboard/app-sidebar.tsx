@@ -10,6 +10,7 @@ import {
   Plug,
   Users,
   Settings,
+  Shield,
 } from "lucide-react";
 import {
   Sidebar,
@@ -56,6 +57,7 @@ const navigation = [
 ];
 
 const adminNavigation = [
+  { name: "Gestion Users", href: "/dashboard/admin/users", icon: Shield },
   { name: "Workflows", href: "/dashboard/admin/workflows", icon: Settings },
 ];
 
@@ -70,9 +72,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: currentOrg, isLoading: isLoadingCurrent } =
     api.organization.getCurrentOrganization.useQuery();
 
-  // Note: La vérification admin se fait côté serveur dans le layout admin
-  // On affiche le menu admin si on est sur une route admin (déjà vérifié côté serveur)
-  const isAdminRoute = pathname?.startsWith("/dashboard/admin");
+  // Afficher le menu admin pour tous les utilisateurs ayant le role admin
+  const { data: sessionData } = authClient.useSession();
+  const userRole = (sessionData?.user as { role?: string } | undefined)?.role;
+  const isAdmin = userRole?.split(",").includes("admin") ?? false;
 
   const utils = api.useUtils();
 
@@ -156,8 +159,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </SidebarMenuItem>
                 );
               })}
-              {/* Menu Admin - visible si on est sur une route admin */}
-              {isAdminRoute && (
+              {/* Menu Admin - visible pour tous les admins */}
+              {isAdmin && (
                 <>
                   <SidebarSeparator className="my-2" />
                   <div className="px-2 py-1.5">
