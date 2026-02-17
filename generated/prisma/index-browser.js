@@ -310,6 +310,16 @@ exports.Prisma.BusinessResourceScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.ApiUsageScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  totalInputTokens: 'totalInputTokens',
+  totalOutputTokens: 'totalOutputTokens',
+  totalCostCents: 'totalCostCents',
+  lastUpdatedAt: 'lastUpdatedAt',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -343,7 +353,8 @@ exports.Prisma.ModelName = {
   WorkflowOrganization: 'WorkflowOrganization',
   ChatSession: 'ChatSession',
   InstagramAnalysis: 'InstagramAnalysis',
-  BusinessResource: 'BusinessResource'
+  BusinessResource: 'BusinessResource',
+  ApiUsage: 'ApiUsage'
 };
 
 /**
