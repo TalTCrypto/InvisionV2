@@ -2,6 +2,75 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { createResourcesFromOnboarding } from "~/server/utils/onboarding-resources";
+
+/**
+ * Zod schema for the flat onboarding fields the frontend sends.
+ * The frontend spreads avatar/context/priorities into `metadata` root.
+ */
+const flatOnboardingFieldsSchema = z.object({
+  businessType: z.string().optional(),
+  offerAngle: z.string().optional(),
+  whatYouOffer: z.string().optional(),
+  targetAudience: z.string().optional(),
+  businessDescription: z.string().optional(),
+  currentChallenge: z.string().optional(),
+  keyMetrics: z.string().optional(),
+  mainGoal: z.string().optional(),
+  decisionContext: z.string().optional(),
+});
+
+/**
+ * Zod schema for the nested metadata sub-objects (legacy structure).
+ */
+const nestedMetadataSchema = z.object({
+  // Business info
+  industry: z.string().optional(),
+  size: z.string().optional(),
+  revenue: z.string().optional(),
+  country: z.string().optional(),
+  website: z.string().optional(),
+  timezone: z.string().optional(),
+  // Avatar client (nested)
+  avatar: z
+    .object({
+      businessType: z.string().optional(),
+      teamSize: z.string().optional(),
+      experience: z.string().optional(),
+      decisionStyle: z.string().optional(),
+      communicationStyle: z.string().optional(),
+      bio: z.string().optional(),
+    })
+    .optional(),
+  // Business Model (nested)
+  businessModel: z
+    .object({
+      businessModel: z.string().optional(),
+      revenueStreams: z.array(z.string()).optional(),
+      targetAudience: z.string().optional(),
+      valueProposition: z.string().optional(),
+      industry: z.string().optional(),
+      size: z.string().optional(),
+      revenue: z.string().optional(),
+      country: z.string().optional(),
+    })
+    .optional(),
+  // Goals & challenges (nested)
+  goals: z
+    .object({
+      primaryGoal: z.string().optional(),
+      challenges: z.array(z.string()).optional(),
+      kpis: z.string().optional(),
+      growthStage: z.string().optional(),
+    })
+    .optional(),
+  // Integrations
+  integrations: z.array(z.string()).optional(),
+});
+
+const metadataSchema = nestedMetadataSchema
+  .merge(flatOnboardingFieldsSchema)
+  .optional();
 
 export const onboardingRouter = createTRPCRouter({
   /**
@@ -32,52 +101,7 @@ export const onboardingRouter = createTRPCRouter({
       z.object({
         organization: z.object({
           name: z.string().min(1, "Le nom est requis"),
-          metadata: z
-            .object({
-              // Business info
-              industry: z.string().optional(),
-              size: z.string().optional(),
-              revenue: z.string().optional(),
-              country: z.string().optional(),
-              website: z.string().optional(),
-              timezone: z.string().optional(),
-              // Avatar client
-              avatar: z
-                .object({
-                  businessType: z.string().optional(),
-                  teamSize: z.string().optional(),
-                  experience: z.string().optional(),
-                  decisionStyle: z.string().optional(),
-                  communicationStyle: z.string().optional(),
-                  bio: z.string().optional(),
-                })
-                .optional(),
-              // Business Model
-              businessModel: z
-                .object({
-                  businessModel: z.string().optional(),
-                  revenueStreams: z.array(z.string()).optional(),
-                  targetAudience: z.string().optional(),
-                  valueProposition: z.string().optional(),
-                  industry: z.string().optional(),
-                  size: z.string().optional(),
-                  revenue: z.string().optional(),
-                  country: z.string().optional(),
-                })
-                .optional(),
-              // Goals & challenges
-              goals: z
-                .object({
-                  primaryGoal: z.string().optional(),
-                  challenges: z.array(z.string()).optional(),
-                  kpis: z.string().optional(),
-                  growthStage: z.string().optional(),
-                })
-                .optional(),
-              // Integrations
-              integrations: z.array(z.string()).optional(),
-            })
-            .optional(),
+          metadata: metadataSchema,
         }),
         quiz: z
           .object({
@@ -198,6 +222,22 @@ export const onboardingRouter = createTRPCRouter({
       await ctx.db.user.update({
         where: { id: userId },
         data: { onboardingCompleted: true },
+      });
+
+      // Auto-créer des ressources depuis les données d'onboarding.
+      // Les champs flat (envoyés par le frontend) ont priorité.
+      // On merge aussi les sous-objets legacy pour compatibilité.
+      const flatMetadata: Record<string, unknown> = {
+        ...(metadata.avatar ?? {}),
+        ...(metadata.businessModel ?? {}),
+        ...(metadata.goals ?? {}),
+        ...metadata,
+      };
+
+      await createResourcesFromOnboarding(ctx.db, {
+        userId,
+        organizationId: organization.id,
+        metadata: flatMetadata,
       });
 
       return {
