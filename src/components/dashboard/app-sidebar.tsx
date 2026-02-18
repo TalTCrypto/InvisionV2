@@ -9,7 +9,6 @@ import {
   BookOpen,
   Plug,
   Users,
-  Settings,
   Shield,
 } from "lucide-react";
 import {
@@ -58,7 +57,6 @@ const navigation = [
 
 const adminNavigation = [
   { name: "Gestion Users", href: "/dashboard/admin/users", icon: Shield },
-  { name: "Workflows", href: "/dashboard/admin/workflows", icon: Settings },
 ];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -98,11 +96,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       // Invalider les queries des ressources qui dépendent de l'organisation
       void utils.resources.list.invalidate();
       void utils.resources.getCategories.invalidate();
-
-      // Invalider les queries admin (au cas où elles dépendent de l'organisation)
-      void utils.admin.listWorkflows.invalidate();
-      void utils.admin.listOrganizations.invalidate();
-      void utils.admin.listOrganizationMembers.invalidate();
 
       // Rafraîchir la page pour s'assurer que tout est à jour
       router.refresh();
