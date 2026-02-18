@@ -18,19 +18,24 @@ import type { BaseTool } from "../tools/base-tool";
 import type { ConnectedIntegration } from "../tools/composio.tool-loader";
 import { type ConversationMemory } from "../memory/conversation-memory";
 import { env } from "~/env";
+import { trackApiUsage } from "~/server/utils/api-usage";
+import type { PrismaClient } from "../../../../../generated/prisma";
 
 export class AgentExecutor {
   private llm: BaseChatModel;
+  private modelName: string;
 
   constructor(
     model: LLMModel,
     private tools: BaseTool[],
     private systemPrompt: string,
     private memory: ConversationMemory,
+    private db: PrismaClient,
     private maxIterations = 10,
     temperature = 0.3,
     private connectedIntegrations: ConnectedIntegration[] = [],
   ) {
+    this.modelName = model;
     this.llm = this.createLLM(model, temperature);
   }
 
@@ -103,6 +108,27 @@ export class AgentExecutor {
           stop: ["Observation:"],
         });
         const response = result.content as string;
+
+        // Track API usage
+        const usageMeta = (
+          result as {
+            usage_metadata?: {
+              input_tokens?: number;
+              output_tokens?: number;
+            };
+          }
+        ).usage_metadata;
+        if (usageMeta && context.userId) {
+          void trackApiUsage(
+            this.db,
+            context.userId,
+            usageMeta.input_tokens ?? 0,
+            usageMeta.output_tokens ?? 0,
+            this.modelName,
+          ).catch((err) =>
+            console.error("[AgentExecutor] Failed to track usage:", err),
+          );
+        }
 
         // Parse response for ReAct format
         const parsed = this.parseReActResponse(response);
@@ -387,6 +413,30 @@ export class AgentExecutor {
     if (!finalAnswer) {
       finalAnswer =
         "J'ai atteint la limite d'itérations sans trouver de réponse complète. Pouvez-vous reformuler votre question?";
+    }
+
+    // Track API usage (estimate tokens from character count: ~4 chars per token)
+    if (context.userId) {
+      const estimatedInputTokens = Math.round(
+        currentMessages.reduce(
+          (acc, m) =>
+            acc +
+            (typeof m.content === "string"
+              ? m.content.length
+              : JSON.stringify(m.content).length),
+          0,
+        ) / 4,
+      );
+      const estimatedOutputTokens = Math.round(finalAnswer.length / 4);
+      void trackApiUsage(
+        this.db,
+        context.userId,
+        estimatedInputTokens,
+        estimatedOutputTokens,
+        this.modelName,
+      ).catch((err) =>
+        console.error("[AgentExecutor] Failed to track usage:", err),
+      );
     }
 
     // Save assistant response to memory (user message was already saved at stream start)

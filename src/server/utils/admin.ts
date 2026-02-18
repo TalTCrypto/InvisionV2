@@ -85,3 +85,47 @@ export async function createAdminUser(
     },
   };
 }
+
+/**
+ * Creer un compte beta user (role "user") avec hash Better Auth compatible
+ */
+export async function createBetaUser(
+  db: PrismaClient,
+  params: { email: string; password: string; name?: string },
+): Promise<{ id: string; email: string; name: string }> {
+  const normalizedEmail = params.email.toLowerCase().trim();
+
+  const existingUser = await db.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
+  if (existingUser) {
+    throw new Error(
+      `Un utilisateur avec l'email ${normalizedEmail} existe deja.`,
+    );
+  }
+
+  const hashedPassword = await hashPassword(params.password);
+
+  const user = await db.user.create({
+    data: {
+      email: normalizedEmail,
+      name: params.name ?? undefined,
+      emailVerified: true,
+      role: "user",
+      accounts: {
+        create: {
+          accountId: normalizedEmail,
+          providerId: "credential",
+          password: hashedPassword,
+        },
+      },
+    },
+  });
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name ?? params.name ?? "User",
+  };
+}

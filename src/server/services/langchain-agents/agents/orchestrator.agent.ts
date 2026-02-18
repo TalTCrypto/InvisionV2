@@ -111,6 +111,7 @@ export class OrchestratorAgent {
       this.toolRegistry.getAll(),
       systemPrompt,
       this.memory,
+      this.config.db,
       15,
       0.3,
       this.connectedIntegrations,

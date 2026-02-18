@@ -110,6 +110,7 @@ export class StrategyAgent {
       this.toolRegistry.getAll(),
       systemPrompt,
       this.memory,
+      this.config.db,
       10,
       0.4,
       this.connectedIntegrations,
