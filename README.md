@@ -13,6 +13,10 @@
 
 </div>
 
+<div align="center">
+<img src="docs/preview.png" alt="Invision AI — Landing page" width="100%" />
+</div>
+
 ---
 
 ## What it is
